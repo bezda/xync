@@ -3,5 +3,5 @@
   "licenses": ["The Apache Software License Version 2.0"],
   "author": "Jordan Halterman",
   "keywords": ["cluster manager", "fault tolerant"],
-  "homepage": "https://github.com/kuujo/xing"
+  "homepage": "https://github.com/kuujo/zync"
 }

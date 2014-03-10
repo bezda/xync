@@ -388,6 +388,7 @@ public class DefaultZyncClusterManager implements ZyncClusterManager {
               if (result.failed()) {
                 new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
               } else {
+                triggerEvent(Event.Type.CHANGE, key, value);
                 if (existed) {
                   triggerEvent(Event.Type.UPDATE, key, value);
                 }
@@ -437,6 +438,7 @@ public class DefaultZyncClusterManager implements ZyncClusterManager {
               if (result.failed()) {
                 new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
               } else {
+                triggerEvent(Event.Type.CHANGE, key, value);
                 triggerEvent(Event.Type.DELETE, key, value);
                 new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
               }

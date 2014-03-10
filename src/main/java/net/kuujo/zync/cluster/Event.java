@@ -47,6 +47,11 @@ public interface Event {
     CREATE("create"),
 
     /**
+     * A change event.
+     */
+    CHANGE("change"),
+
+    /**
      * An update event.
      */
     UPDATE("update"),
