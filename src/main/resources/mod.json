@@ -1,0 +1,7 @@
+{
+  "description": "A fault-tolerant cluster manager for Vert.x.",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Jordan Halterman",
+  "keywords": ["cluster manager", "fault tolerant"],
+  "homepage": "https://github.com/kuujo/xing"
+}
