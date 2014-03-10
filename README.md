@@ -1,8 +1,6 @@
 Xync
 ====
 
-A fault-tolerant cluster manager for Vert.x
-
 Xync is a fault-tolerant cluster manager for Vert.x. Xync augments the
 existing Vert.x platform and cluster managers to provide support for
 remote module management. This means users can deploy modules to a cluster
@@ -12,6 +10,21 @@ also provides distributed shared data via the Vert.x event bus.
 
 Vert.x with Xync must be run in cluster mode because Xync is designed
 specifically for clustering.
+
+## User Manual
+
+1. [Installation](#installation)
+1. [Starting a Xync node](#starting-a-xync-node)
+1. [Working with deployments](#working-with-deployments)
+   * [Deploying modules](#deploying-modules)
+   * [Undeploying modules](#undeploying-modules)
+   * [Deploying modules to specific HA groups](#deploying-modules-to-specific-ha-groups)
+1. [Working with remote shared data](#working-with-remote-shared-data)
+   * [Setting the value of a key](#setting-the-value-of-a-key)
+   * [Reading the value of a key](#reading-the-value-of-a-key)
+   * [Deleting a key](#deleting-a-key)
+   * [Checking if a key exists](#checking-if-a-key-exists)
+   * [Monitoring keys for changes](#monitoring-keys-for-changes)
 
 ### Installation
 Currently, Vert.x requires some setup to use the Xync cluster manager.
@@ -30,19 +43,6 @@ VERTX_HOME -ha
 
 Xync follows all the standard Vert.x HA rules, including HA groups
 which are integrated into the remote deployment interface as well.
-
-## User Manual
-
-1. [Working with deployments](#working-with-deployments)
-   * [Deploying modules](#deploying-modules)
-   * [Undeploying modules](#undeploying-modules)
-   * [Deploying modules to specific HA groups](#deploying-modules-to-specific-ha-groups)
-1. [Working with remote shared data](#working-with-remote-shared-data)
-   * [Setting the value of a key](#setting-the-value-of-a-key)
-   * [Reading the value of a key](#reading-the-value-of-a-key)
-   * [Deleting a key](#deleting-a-key)
-   * [Checking if a key exists](#checking-if-a-key-exists)
-   * [Monitoring keys for changes](#monitoring-keys-for-changes)
 
 ## Working with deployments
 Xync's primary purpose is to provide a simple event bus interface for
