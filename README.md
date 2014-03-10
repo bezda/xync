@@ -29,16 +29,16 @@ specifically for clustering.
 ### Installation
 Currently, Vert.x requires some setup to use the Xync cluster manager.
 
+1. Copy the Xync jar into the `VERTX_HOME/lib` directory
 1. Edit your `VERTX_HOME/conf/META-INF/services` file to read
    `net.kuujo.xync.platform.impl.XyncPlatformManagerFactory`
-1. Copy the Xync jar into the `VERTX_HOME/lib` directory.
 
 ### Starting a Xync node
 Xync nodes are run as bare Vert.x instances in `-ha` mode. With the
 previous setup complete, to run Xync simply start a bare Vert.x instance:
 
 ```
-VERTX_HOME -ha
+VERTX_HOME/bin/vertx -ha
 ```
 
 Xync follows all the standard Vert.x HA rules, including HA groups
