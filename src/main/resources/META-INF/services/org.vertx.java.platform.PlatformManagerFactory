@@ -1,1 +1,1 @@
-net.kuujo.zync.platform.impl.ZyncPlatformManagerFactory
+net.kuujo.xync.platform.impl.XyncPlatformManagerFactory

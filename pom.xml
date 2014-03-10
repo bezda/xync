@@ -8,12 +8,12 @@
   </parent>
 
   <groupId>net.kuujo</groupId>
-  <artifactId>zync</artifactId>
+  <artifactId>xync</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  <name>Zync</name>
+  <name>Xync</name>
   <description>A fault-tolerant cluster manager for Vert.x.</description>
-  <url>http://github.com/kuujo/zync</url>
+  <url>http://github.com/kuujo/xync</url>
   <inceptionYear>2014</inceptionYear>
 
   <properties>
@@ -50,14 +50,14 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git@github.com:kuujo/zync.git</connection>
-    <developerConnection>scm:git:git@github.com:kuujo/zync.git</developerConnection>
-    <url>git@github.com:kuujo/zync.git</url>
+    <connection>scm:git:git@github.com:kuujo/xync.git</connection>
+    <developerConnection>scm:git:git@github.com:kuujo/xync.git</developerConnection>
+    <url>git@github.com:kuujo/xync.git</url>
   </scm>
 
   <issueManagement>
     <system>GitHub</system>
-    <url>http://github.com/kuujo/zync/issues</url>
+    <url>http://github.com/kuujo/xync/issues</url>
   </issueManagement>
 
   <dependencies>
