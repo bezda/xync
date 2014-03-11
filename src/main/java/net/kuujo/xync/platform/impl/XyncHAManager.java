@@ -109,9 +109,9 @@ public class XyncHAManager extends HAManager {
 
   private static final Logger log = LoggerFactory.getLogger(XyncHAManager.class);
   private static final String CLUSTER_MAP_NAME = "__vertx.haInfo";
-  private static final String DEPLOYMENTS_MAP_NAME = "__vertigo.deployments";
-  private static final String DEPLOYMENT_IDS_MAP_NAME = "__vertigo.deploymentIDs";
-  private static final String USER_IDS_MAP_NAME = "__vertigo.userIDs";
+  private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
+  private static final String DEPLOYMENT_IDS_MAP_NAME = "__xync.deploymentIDs";
+  private static final String USER_IDS_MAP_NAME = "__xync.userIDs";
   private static final long QUORUM_CHECK_PERIOD = 1000;
 
   private final VertxInternal vertx;
