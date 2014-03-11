@@ -1,9 +1,3 @@
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.platform.Verticle;
-
 /*
  * Copyright 2014 the original author or authors.
  *
@@ -19,6 +13,12 @@ import org.vertx.java.platform.Verticle;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.Handler;
+import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.platform.Verticle;
 
 /**
  * Cluster data example.
