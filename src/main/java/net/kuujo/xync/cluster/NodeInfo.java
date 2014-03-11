@@ -34,18 +34,11 @@ public interface NodeInfo {
   String id();
 
   /**
-   * Returns the node cluster.
+   * Returns the node HA group.
    *
-   * @return The node cluster.
+   * @return The node HA group.
    */
-  String cluster();
-
-  /**
-   * Returns the node address.
-   * 
-   * @return The node address.
-   */
-  String address();
+  String group();
 
   /**
    * Returns a collection of deployments assigned to the node.

@@ -31,8 +31,7 @@ import org.vertx.java.core.json.JsonObject;
  */
 public class DefaultNodeInfo implements NodeInfo {
   private String id;
-  private String cluster;
-  private String address;
+  private String group;
   private Collection<DeploymentInfo> deployments = new HashSet<>();
 
   private DefaultNodeInfo() {
@@ -40,8 +39,7 @@ public class DefaultNodeInfo implements NodeInfo {
 
   public DefaultNodeInfo(JsonObject info) {
     id = info.getString("id");
-    cluster = info.getString("cluster");
-    address = info.getString("address");
+    group = info.getString("group");
     JsonArray deployments = info.getArray("deployments");
     if (deployments != null) {
       for (Object deployment : deployments) {
@@ -56,13 +54,8 @@ public class DefaultNodeInfo implements NodeInfo {
   }
 
   @Override
-  public String cluster() {
-    return cluster;
-  }
-
-  @Override
-  public String address() {
-    return address;
+  public String group() {
+    return group;
   }
 
   @Override
@@ -78,8 +71,7 @@ public class DefaultNodeInfo implements NodeInfo {
     }
     return new JsonObject()
         .putString("id", id)
-        .putString("cluster", cluster)
-        .putString("address", address)
+        .putString("group", group)
         .putArray("deployments", deployments);
   }
 
@@ -119,24 +111,13 @@ public class DefaultNodeInfo implements NodeInfo {
     }
 
     /**
-     * Sets the node cluster.
+     * Sets the node HA group.
      *
-     * @param cluster The node cluster.
+     * @param group The node HA group.
      * @return The builder instance.
      */
-    public Builder setCluster(String cluster) {
-      info.cluster = cluster;
-      return this;
-    }
-
-    /**
-     * Sets the node address.
-     * 
-     * @param address The node address.
-     * @return The builder instance.
-     */
-    public Builder setAddress(String address) {
-      info.address = address;
+    public Builder setGroup(String group) {
+      info.group = group;
       return this;
     }
 
