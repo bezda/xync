@@ -111,6 +111,17 @@ public class DefaultNodeInfo implements NodeInfo {
     }
 
     /**
+     * Sets the node ID.
+     *
+     * @param id The node ID.
+     * @return The builder instance.
+     */
+    public Builder setId(String id) {
+      info.id = id;
+      return this;
+    }
+
+    /**
      * Sets the node HA group.
      *
      * @param group The node HA group.
