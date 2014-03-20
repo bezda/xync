@@ -15,6 +15,7 @@
  */
 package net.kuujo.xync.platform.impl;
 
+import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -22,30 +23,32 @@ import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.XyncClusterService;
 import net.kuujo.xync.cluster.impl.DefaultXyncClusterManagerFactory;
 import net.kuujo.xync.cluster.impl.DefaultXyncClusterServiceFactory;
+import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.impl.VertxInternal;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.impl.DefaultPlatformManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  * Xing platform manager.
  *
  * @author Jordan Halterman
  */
-public class XyncPlatformManager extends DefaultPlatformManager {
+public class DefaultXyncPlatformManager extends DefaultPlatformManager implements XyncPlatformManager {
+  protected final XyncHAManager xyncHaManager;
   protected final XyncClusterManager xyncManager;
   protected final XyncClusterService xyncService;
   private final Vertx vertx;
 
-  public XyncPlatformManager(int port, String hostname, int quorumSize, String group) {
+  public DefaultXyncPlatformManager(int port, String hostname, int quorumSize, String group) {
     super(port, hostname, quorumSize, group);
     this.vertx = vertx();
     this.xyncManager = new DefaultXyncClusterManagerFactory().createClusterManager(group, (VertxInternal) vertx, this, clusterManager);
     this.xyncService = new DefaultXyncClusterServiceFactory().createClusterService(xyncManager);
-    this.haManager = new XyncHAManager((VertxInternal) vertx, (PlatformManagerInternal) this, clusterManager, quorumSize, group);
+    this.xyncHaManager = new XyncHAManager((VertxInternal) vertx, this, clusterManager, quorumSize, group);
     startCluster();
     startService();
   }
@@ -84,6 +87,60 @@ public class XyncPlatformManager extends DefaultPlatformManager {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  @Override
+  public synchronized void deployModuleAs(final String deploymentID, final String moduleName, final JsonObject config, final int instances, final Handler<AsyncResult<String>> doneHandler) {
+    if (xyncHaManager != null) {
+      xyncHaManager.deployModuleAs(deploymentID, moduleName, config, instances, doneHandler);
+    }
+    else {
+      deployModule(moduleName, config, instances, doneHandler);
+    }
+  }
+
+  @Override
+  public synchronized void deployVerticleAs(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+      final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    if (xyncHaManager != null) {
+      xyncHaManager.deployVerticleAs(deploymentID, main, config, classpath, instances, includes, doneHandler);
+    }
+    else {
+      deployVerticle(main, config, classpath, instances, includes, doneHandler);
+    }
+  }
+
+  @Override
+  public synchronized void deployWorkerVerticleAs(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+      final boolean multiThreaded, final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    if (xyncHaManager != null) {
+      xyncHaManager.deployWorkerVerticleAs(deploymentID, main, config, classpath, instances, multiThreaded, includes, doneHandler);
+    }
+    else {
+      deployWorkerVerticle(multiThreaded, main, config, classpath, instances, includes, doneHandler);
+    }
+  }
+
+  @Override
+  public void undeployModuleAs(String deploymentID, Handler<AsyncResult<Void>> doneHandler) {
+    if (xyncHaManager != null) {
+      xyncHaManager.undeployModuleAs(deploymentID, doneHandler);
+    }
+  }
+
+  @Override
+  public void undeployVerticleAs(String deploymentID, Handler<AsyncResult<Void>> doneHandler) {
+    if (xyncHaManager != null) {
+      xyncHaManager.undeployVerticleAs(deploymentID, doneHandler);
+    }
+  }
+
+  @Override
+  public void stop() {
+    if (xyncHaManager != null) {
+      xyncHaManager.stop();
+    }
+    super.stop();
   }
 
 }

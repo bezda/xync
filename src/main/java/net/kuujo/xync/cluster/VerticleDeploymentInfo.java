@@ -15,12 +15,14 @@
  */
 package net.kuujo.xync.cluster;
 
+import java.net.URL;
+
 /**
  * Verticle deployment info.
  *
  * @author Jordan Halterman
  */
-public interface VerticleDeploymentInfo {
+public interface VerticleDeploymentInfo extends DeploymentInfo {
 
   /**
    * Returns the verticle main.
@@ -28,6 +30,20 @@ public interface VerticleDeploymentInfo {
    * @return The verticle main.
    */
   String main();
+
+  /**
+   * Returns the verticle classpath.
+   *
+   * @return The verticle classpath.
+   */
+  URL[] classpath();
+
+  /**
+   * Returns a string of includes for the verticle.
+   *
+   * @return Includes for the verticle.
+   */
+  String includes();
 
   /**
    * Indicates whether the verticle is a worker.

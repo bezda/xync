@@ -29,17 +29,17 @@ public class XyncPlatformManagerFactory implements PlatformManagerFactory {
 
   @Override
   public PlatformManager createPlatformManager() {
-    return new XyncPlatformManager(0, "localhost", 1, UUID.randomUUID().toString());
+    return new DefaultXyncPlatformManager(0, "localhost", 1, UUID.randomUUID().toString());
   }
 
   @Override
   public PlatformManager createPlatformManager(int clusterPort, String clusterHost) {
-    return new XyncPlatformManager(clusterPort, clusterHost, 1, UUID.randomUUID().toString());
+    return new DefaultXyncPlatformManager(clusterPort, clusterHost, 1, UUID.randomUUID().toString());
   }
 
   @Override
   public PlatformManager createPlatformManager(int clusterPort, String clusterHost, int quorumSize, String group) {
-    return new XyncPlatformManager(clusterPort, clusterHost, quorumSize, group);
+    return new DefaultXyncPlatformManager(clusterPort, clusterHost, quorumSize, group);
   }
 
 }

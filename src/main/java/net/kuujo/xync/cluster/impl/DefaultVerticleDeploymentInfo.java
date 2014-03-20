@@ -15,10 +15,14 @@
  */
 package net.kuujo.xync.cluster.impl;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.VerticleDeploymentInfo;
 import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
 
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 /**
@@ -28,6 +32,8 @@ import org.vertx.java.core.json.JsonObject;
  */
 public class DefaultVerticleDeploymentInfo extends AbstractDeploymentInfo implements VerticleDeploymentInfo {
   protected String main;
+  protected URL[] classpath;
+  protected String includes;
 
   protected DefaultVerticleDeploymentInfo() {
   }
@@ -38,6 +44,21 @@ public class DefaultVerticleDeploymentInfo extends AbstractDeploymentInfo implem
     config = info.containsField("config") ? info.getObject("config").toMap() : null;
     instances = info.getInteger("instances", 1);
     main = info.getString("main");
+    includes = info.getString("includes");
+    JsonArray cp = info.getArray("classpath");
+    if (cp != null) {
+      classpath = new URL[cp.size()];
+      int i = 0;
+      for (Object path : cp) {
+        try {
+          classpath[i++] = new URL((String) path);
+        } catch (MalformedURLException e) {
+          continue;
+        }
+      }
+    } else {
+      classpath = new URL[]{};
+    }
   }
 
   @Override
@@ -57,11 +78,17 @@ public class DefaultVerticleDeploymentInfo extends AbstractDeploymentInfo implem
 
   @Override
   public JsonObject toJson() {
+    JsonArray cp = new JsonArray();
+    for (URL path : classpath) {
+      cp.add(path.toString());
+    }
     return new JsonObject()
         .putString("type", DeploymentInfo.Type.VERTICLE.getName())
         .putString("id", id)
         .putString("group", group)
         .putString("main", main)
+        .putArray("classpath", cp)
+        .putString("includes", includes)
         .putBoolean("worker", false)
         .putObject("config", config())
         .putNumber("instances", instances);
@@ -70,6 +97,16 @@ public class DefaultVerticleDeploymentInfo extends AbstractDeploymentInfo implem
   @Override
   public String main() {
     return main;
+  }
+
+  @Override
+  public URL[] classpath() {
+    return classpath;
+  }
+
+  @Override
+  public String includes() {
+    return includes;
   }
 
   @Override
@@ -158,6 +195,28 @@ public class DefaultVerticleDeploymentInfo extends AbstractDeploymentInfo implem
      */
     public Builder setInstances(int instances) {
       info.instances = instances;
+      return this;
+    }
+
+    /**
+     * Sets the verticle classpath.
+     *
+     * @param classpath The verticle classpath.
+     * @return The builder instance.
+     */
+    public Builder setClassPath(URL[] classpath) {
+      info.classpath = classpath;
+      return this;
+    }
+
+    /**
+     * Sets the verticle includes.
+     *
+     * @param includes The verticle includes.
+     * @return The builder instance.
+     */
+    public Builder setIncludes(String includes) {
+      info.includes = includes;
       return this;
     }
 

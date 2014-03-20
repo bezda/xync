@@ -1,21 +1,24 @@
 /*
- * Copyright 2011-2014 the original author or authors.
+ * Copyright (c) 2011-2013 The original author or authors
+ * ------------------------------------------------------
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Apache License v2.0 which accompanies this distribution.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *     The Eclipse Public License is available at
+ *     http://www.eclipse.org/legal/epl-v10.html
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     The Apache License v2.0 is available at
+ *     http://www.opensource.org/licenses/apache2.0.php
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You may elect to redistribute this code under either of these licenses.
  */
+
 package net.kuujo.xync.platform.impl;
 
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +27,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import net.kuujo.xync.cluster.DeploymentInfo;
+import net.kuujo.xync.cluster.ModuleDeploymentInfo;
+import net.kuujo.xync.cluster.VerticleDeploymentInfo;
+import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
+import net.kuujo.xync.cluster.impl.DefaultModuleDeploymentInfo;
+import net.kuujo.xync.cluster.impl.DefaultVerticleDeploymentInfo;
+import net.kuujo.xync.cluster.impl.DefaultWorkerVerticleDeploymentInfo;
+import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -36,12 +48,8 @@ import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.core.spi.Action;
-import org.vertx.java.core.spi.cluster.AsyncMap;
 import org.vertx.java.core.spi.cluster.ClusterManager;
 import org.vertx.java.core.spi.cluster.NodeListener;
-import org.vertx.java.platform.impl.Deployment;
-import org.vertx.java.platform.impl.HAManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  *
@@ -105,27 +113,22 @@ import org.vertx.java.platform.impl.PlatformManagerInternal;
  *
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class XyncHAManager extends HAManager {
+public class XyncHAManager {
 
   private static final Logger log = LoggerFactory.getLogger(XyncHAManager.class);
-  private static final String CLUSTER_MAP_NAME = "__vertx.haInfo";
-  private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
-  private static final String DEPLOYMENT_IDS_MAP_NAME = "__xync.deploymentIDs";
-  private static final String USER_IDS_MAP_NAME = "__xync.userIDs";
+  private static final String CLUSTER_MAP_NAME = "__xync.cluster";
   private static final long QUORUM_CHECK_PERIOD = 1000;
 
   private final VertxInternal vertx;
-  private final PlatformManagerInternal platformManager;
+  private final XyncPlatformManager platformManager;
   private final ClusterManager clusterManager;
   private final int quorumSize;
   private final String group;
   private final JsonObject haInfo;
-  private final JsonArray haMods;
+  private final JsonArray haDeployments;
   private final Map<String, String> clusterMap;
-  private final Map<String, String> deployments;
-  private final Map<String, String> deploymentIDsSync;
-  private final AsyncMap<String, String> userIDs;
-  private final Map<String, String> userIDsSync;
+  private final Map<String, String> deploymentIDs = new HashMap<>();
+  private final Map<String, String> internalIDs = new HashMap<>();
   private final String nodeID;
   private final Queue<Runnable> toDeployOnQuorum = new ConcurrentLinkedQueue<>();
   private long quorumTimerID;
@@ -134,22 +137,17 @@ public class XyncHAManager extends HAManager {
   private volatile boolean failDuringFailover;
   private volatile boolean stopped;
 
-  public XyncHAManager(VertxInternal vertx, PlatformManagerInternal platformManager, ClusterManager clusterManager, int quorumSize, String group) {
-    super(vertx, platformManager, clusterManager, quorumSize, group);
+  public XyncHAManager(VertxInternal vertx, XyncPlatformManager platformManager, ClusterManager clusterManager, int quorumSize, String group) {
     this.vertx = vertx;
     this.platformManager = platformManager;
     this.clusterManager = clusterManager;
     this.quorumSize = quorumSize;
     this.group = group == null ? "__DEFAULT__" : group;
     this.haInfo = new JsonObject();
-    this.haMods = new JsonArray();
-    haInfo.putArray("mods", haMods);
+    this.haDeployments = new JsonArray();
+    haInfo.putArray("deployments", haDeployments);
     haInfo.putString("group", this.group);
     this.clusterMap = clusterManager.getSyncMap(CLUSTER_MAP_NAME);
-    this.deployments = clusterManager.getSyncMap(DEPLOYMENTS_MAP_NAME);
-    this.deploymentIDsSync = clusterManager.getSyncMap(DEPLOYMENT_IDS_MAP_NAME);
-    this.userIDs = clusterManager.getAsyncMap(USER_IDS_MAP_NAME);
-    this.userIDsSync = clusterManager.getSyncMap(USER_IDS_MAP_NAME);
     this.nodeID = clusterManager.getNodeID();
     clusterManager.nodeListener(new NodeListener() {
       @Override
@@ -175,15 +173,36 @@ public class XyncHAManager extends HAManager {
     }
   }
 
-  // Remove the information on the deployment from the cluster - this is called when an HA module is undeployed
-  public void removeFromHA(String depID) {
-    synchronized (haMods) {
-      Iterator<Object> iter = haMods.iterator();
+  // Undeploy a module.
+  public void undeployModuleAs(final String deploymentID, final Handler<AsyncResult<Void>> doneHandler) {
+    synchronized (haDeployments) {
+      Iterator<Object> iter = haDeployments.iterator();
       while (iter.hasNext()) {
         Object obj = iter.next();
-        JsonObject mod = (JsonObject)obj;
-        if (mod.getString("dep_id").equals(depID)) {
+        JsonObject deployment = (JsonObject)obj;
+        if (deployment.getString("id").equals(deploymentID) && internalIDs.containsKey(deploymentID)) {
           iter.remove();
+          String internalID = internalIDs.remove(deploymentID);
+          platformManager.undeploy(internalID, doneHandler);
+          deploymentIDs.remove(internalID);
+        }
+      }
+    }
+    clusterMap.put(nodeID, haInfo.encode());
+  }
+
+  // Undeploy a verticle.
+  public void undeployVerticleAs(final String deploymentID, final Handler<AsyncResult<Void>> doneHandler) {
+    synchronized (haDeployments) {
+      Iterator<Object> iter = haDeployments.iterator();
+      while (iter.hasNext()) {
+        Object obj = iter.next();
+        JsonObject deployment = (JsonObject)obj;
+        if (deployment.getString("id").equals(deploymentID) && internalIDs.containsKey(deploymentID)) {
+          iter.remove();
+          String internalID = internalIDs.remove(deploymentID);
+          platformManager.undeploy(internalID, doneHandler);
+          deploymentIDs.remove(internalID);
         }
       }
     }
@@ -191,7 +210,7 @@ public class XyncHAManager extends HAManager {
   }
 
   // Deploy an HA module
-  public void deployModule(final String moduleName, final JsonObject config, final int instances,
+  public void deployModuleAs(final String deploymentID, final String moduleName, final JsonObject config, final int instances,
                                         final Handler<AsyncResult<String>> doneHandler) {
     if (attainedQuorum) {
       final Handler<AsyncResult<String>> wrappedHandler = new Handler<AsyncResult<String>>() {
@@ -199,7 +218,7 @@ public class XyncHAManager extends HAManager {
         public void handle(AsyncResult<String> asyncResult) {
           if (asyncResult.succeeded()) {
             // Tell the other nodes of the cluster about the module for HA purposes
-            addToHA(asyncResult.result(), moduleName, config, instances);
+            addModuleToHA(deploymentID, asyncResult.result(), moduleName, config, instances);
           }
           if (doneHandler != null) {
             doneHandler.handle(asyncResult);
@@ -211,7 +230,57 @@ public class XyncHAManager extends HAManager {
       platformManager.deployModuleInternal(moduleName, config, instances, true, wrappedHandler);
     } else {
       log.info("Quorum not attained. Deployment of module will be delayed until there's a quorum.");
-      addToHADeployList(moduleName, config, instances, doneHandler);
+      addModuleToHADeployList(deploymentID, moduleName, config, instances, doneHandler);
+    }
+  }
+
+  // Deploy an HA verticle
+  public void deployVerticleAs(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+      final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    if (attainedQuorum) {
+      final Handler<AsyncResult<String>> wrappedHandler = new Handler<AsyncResult<String>>() {
+        @Override
+        public void handle(AsyncResult<String> asyncResult) {
+          if (asyncResult.succeeded()) {
+            // Tell the other nodes of the cluster about the verticle for HA purposes
+            addVerticleToHA(deploymentID, asyncResult.result(), main, config, classpath, instances, includes);
+          }
+          if (doneHandler != null) {
+            doneHandler.handle(asyncResult);
+          } else if (asyncResult.failed()) {
+            log.error("Failed to deploy verticle", asyncResult.cause());
+          }
+        }
+      };
+      platformManager.deployVerticle(main, config, classpath, instances, includes, wrappedHandler);
+    } else {
+      log.info("Quorum not attained. Deployment of module will be delayed until there's a quorum.");
+      addVerticleToHADeployList(deploymentID, main, config, classpath, instances, includes, doneHandler);
+    }
+  }
+
+  // Deploy an HA worker verticle
+  public void deployWorkerVerticleAs(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+      final boolean multiThreaded, final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    if (attainedQuorum) {
+      final Handler<AsyncResult<String>> wrappedHandler = new Handler<AsyncResult<String>>() {
+        @Override
+        public void handle(AsyncResult<String> asyncResult) {
+          if (asyncResult.succeeded()) {
+            // Tell the other nodes of the cluster about the verticle for HA purposes
+            addWorkerVerticleToHA(deploymentID, asyncResult.result(), main, config, classpath, instances, multiThreaded, includes);
+          }
+          if (doneHandler != null) {
+            doneHandler.handle(asyncResult);
+          } else if (asyncResult.failed()) {
+            log.error("Failed to deploy verticle", asyncResult.cause());
+          }
+        }
+      };
+      platformManager.deployWorkerVerticle(multiThreaded, main, config, classpath, instances, includes, wrappedHandler);
+    } else {
+      log.info("Quorum not attained. Deployment of module will be delayed until there's a quorum.");
+      addWorkerVerticleToHADeployList(deploymentID, main, config, classpath, instances, multiThreaded, includes, doneHandler);
     }
   }
 
@@ -336,34 +405,105 @@ public class XyncHAManager extends HAManager {
   }
 
   // Add some information on a deployment in the cluster so other nodes know about it
-  private void addToHA(String deploymentID, String moduleName, JsonObject conf, int instances) {
-    JsonObject moduleConf = new JsonObject().putString("dep_id", deploymentID);
-    moduleConf.putString("module_name", moduleName);
-    if (conf != null) {
-      moduleConf.putObject("conf", conf);
+  private void addModuleToHA(String deploymentID, String internalID, String moduleName, JsonObject conf, int instances) {
+    DeploymentInfo info = DefaultModuleDeploymentInfo.Builder.newBuilder()
+        .setId(deploymentID)
+        .setModule(moduleName)
+        .setConfig(conf)
+        .setInstances(instances)
+        .build();
+    synchronized (haDeployments) {
+      haDeployments.addObject(info.toJson());
     }
-    moduleConf.putNumber("instances", instances);
-    synchronized (haMods) {
-      haMods.addObject(moduleConf);
+    deploymentIDs.put(internalID, deploymentID);
+    internalIDs.put(deploymentID, internalID);
+    clusterMap.put(nodeID, haInfo.encode());
+  }
+
+  // Add some information on a deployment in the cluster so other nodes know about it
+  private void addVerticleToHA(String deploymentID, String internalID, String main, JsonObject conf, URL[] classpath, int instances, String includes) {
+    DeploymentInfo info = DefaultVerticleDeploymentInfo.Builder.newBuilder()
+        .setId(deploymentID)
+        .setMain(main)
+        .setConfig(conf)
+        .setInstances(instances)
+        .setClassPath(classpath)
+        .setIncludes(includes)
+        .build();
+    synchronized (haDeployments) {
+      haDeployments.addObject(info.toJson());
     }
+    deploymentIDs.put(internalID, deploymentID);
+    internalIDs.put(deploymentID, internalID);
+    clusterMap.put(nodeID, haInfo.encode());
+  }
+
+  // Add some information on a deployment in the cluster so other nodes know about it
+  private void addWorkerVerticleToHA(String deploymentID, String internalID, String main, JsonObject conf, URL[] classpath, int instances, boolean multiThreaded, String includes) {
+    DeploymentInfo info = DefaultWorkerVerticleDeploymentInfo.Builder.newBuilder()
+        .setId(deploymentID)
+        .setMain(main)
+        .setConfig(conf)
+        .setInstances(instances)
+        .setClassPath(classpath)
+        .setMultiThreaded(multiThreaded)
+        .setIncludes(includes)
+        .build();
+    synchronized (haDeployments) {
+      haDeployments.addObject(info.toJson());
+    }
+    deploymentIDs.put(internalID, deploymentID);
+    internalIDs.put(deploymentID, internalID);
     clusterMap.put(nodeID, haInfo.encode());
   }
 
   // Add the deployment to an internal list of deployments - these will be executed when a quorum is attained
-  private void addToHADeployList(final String moduleName, final JsonObject config, final int instances,
+  private void addModuleToHADeployList(final String deploymentID, final String moduleName, final JsonObject config, final int instances,
                                  final Handler<AsyncResult<String>> doneHandler) {
     toDeployOnQuorum.add(new Runnable() {
       public void run() {
         DefaultContext ctx = vertx.getContext();
         try {
           vertx.setContext(null);
-          deployModule(moduleName, config, instances, doneHandler);
+          deployModuleAs(deploymentID, moduleName, config, instances, doneHandler);
         } finally {
           vertx.setContext(ctx);
         }
       }
     });
    }
+
+  // Add the deployment to an internal list of deployments - these will be executed when a quorum is attained
+  private void addVerticleToHADeployList(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+                                 final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    toDeployOnQuorum.add(new Runnable() {
+      public void run() {
+        DefaultContext ctx = vertx.getContext();
+        try {
+          vertx.setContext(null);
+          deployVerticleAs(deploymentID, main, config, classpath, instances, includes, doneHandler);
+        } finally {
+          vertx.setContext(ctx);
+        }
+      }
+    });
+  }
+
+  // Add the deployment to an internal list of deployments - these will be executed when a quorum is attained
+  private void addWorkerVerticleToHADeployList(final String deploymentID, final String main, final JsonObject config, final URL[] classpath, final int instances,
+                                 final boolean multiThreaded, final String includes, final Handler<AsyncResult<String>> doneHandler) {
+    toDeployOnQuorum.add(new Runnable() {
+      public void run() {
+        DefaultContext ctx = vertx.getContext();
+        try {
+          vertx.setContext(null);
+          deployWorkerVerticleAs(deploymentID, main, config, classpath, instances, multiThreaded, includes, doneHandler);
+        } finally {
+          vertx.setContext(ctx);
+        }
+      }
+    });
+  }
 
   private void checkHADeployments() {
     try {
@@ -379,34 +519,110 @@ public class XyncHAManager extends HAManager {
 
   // Undeploy any HA deployments now there is no quorum
   private void undeployHADeployments() {
-    for (final Map.Entry<String, Deployment> entry: platformManager.deployments().entrySet()) {
-      if (entry.getValue().ha) {
-        DefaultContext ctx = vertx.getContext();
-        try {
-          vertx.setContext(null);
-          platformManager.undeploy(entry.getKey(), new AsyncResultHandler<Void>() {
-            @Override
-            public void handle(AsyncResult<Void> result) {
-              if (result.succeeded()) {
-                final Deployment dep = entry.getValue();
-                log.info("Successfully undeployed HA deployment " + dep.modID + " as there is no quorum");
-                addToHADeployList(dep.modID.toString(), dep.config, dep.instances, new AsyncResultHandler<String>() {
-                  @Override
-                  public void handle(AsyncResult<String> result) {
-                    if (result.succeeded()) {
-                      log.info("Successfully redeployed module " + entry.getValue().modID + " after quorum was re-attained");
-                    } else {
-                      log.error("Failed to redeploy module " + entry.getValue().modID + " after quorum was re-attained", result.cause());
-                    }
-                  }
-                });
-              } else {
-                log.error("Failed to undeploy deployment on lost quorum", result.cause());
+    for (Object deployment : haDeployments) {
+      JsonObject info = (JsonObject) deployment;
+      String stype = info.getString("type");
+      final DeploymentInfo.Type type = DeploymentInfo.Type.parse(stype);
+      if (type.equals(DeploymentInfo.Type.MODULE)) {
+        final ModuleDeploymentInfo deploymentInfo = new DefaultModuleDeploymentInfo(info);
+        final String deploymentID = internalIDs.get(deploymentInfo.id());
+        if (deploymentID != null) {
+          DefaultContext ctx = vertx.getContext();
+          try {
+            vertx.setContext(null);
+            platformManager.undeploy(deploymentID, new AsyncResultHandler<Void>() {
+              @Override
+              public void handle(AsyncResult<Void> result) {
+                if (result.succeeded()) {
+                  log.info("Successfully undeploy HA deployment " + deploymentInfo.id() + " as there is no quorum");
+                  addModuleToHADeployList(deploymentID, deploymentInfo.module(), deploymentInfo.config(),
+                      deploymentInfo.instances(), new AsyncResultHandler<String>() {
+                        @Override
+                        public void handle(AsyncResult<String> result) {
+                          if (result.succeeded()) {
+                            log.info("Successfully redeployed module " + deploymentInfo.module() + " after quorum was re-attained");
+                          } else {
+                            log.error("Failed to redeploy module " + deploymentInfo.module() + " after quorum was re-attained", result.cause());
+                          }
+                        }
+                  });
+                } else {
+                  log.error("Failed to undeploy deployment on lost quorum", result.cause());
+                }
               }
+            });
+          } finally {
+            vertx.setContext(ctx);
+          }
+        }
+      }
+      else if (type.equals(DeploymentInfo.Type.VERTICLE)) {
+        boolean isWorker = info.getBoolean("worker", false);
+        if (isWorker) {
+          final WorkerVerticleDeploymentInfo deploymentInfo = new DefaultWorkerVerticleDeploymentInfo(info);
+          final String deploymentID = internalIDs.get(deploymentInfo.id());
+          if (deploymentID != null) {
+            DefaultContext ctx = vertx.getContext();
+            try {
+              vertx.setContext(null);
+              platformManager.undeploy(deploymentID, new AsyncResultHandler<Void>() {
+                @Override
+                public void handle(AsyncResult<Void> result) {
+                  if (result.succeeded()) {
+                    log.info("Successfully undeploy HA deployment " + deploymentInfo.id() + " as there is no quorum");
+                    addWorkerVerticleToHADeployList(deploymentID, deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(),
+                        deploymentInfo.instances(), deploymentInfo.isMultiThreaded(), deploymentInfo.includes(), new AsyncResultHandler<String>() {
+                          @Override
+                          public void handle(AsyncResult<String> result) {
+                            if (result.succeeded()) {
+                              log.info("Successfully redeployed worker verticle " + deploymentInfo.main() + " after quorum was re-attained");
+                            } else {
+                              log.error("Failed to redeploy worker verticle " + deploymentInfo.main() + " after quorum was re-attained", result.cause());
+                            }
+                          }
+                    });
+                  } else {
+                    log.error("Failed to undeploy deployment on lost quorum", result.cause());
+                  }
+                }
+              });
+            } finally {
+              vertx.setContext(ctx);
             }
-          });
-        } finally {
-          vertx.setContext(ctx);
+          }
+        }
+        else {
+          final VerticleDeploymentInfo deploymentInfo = new DefaultVerticleDeploymentInfo(info);
+          final String deploymentID = internalIDs.get(deploymentInfo.id());
+          if (deploymentID != null) {
+            DefaultContext ctx = vertx.getContext();
+            try {
+              vertx.setContext(null);
+              platformManager.undeploy(deploymentID, new AsyncResultHandler<Void>() {
+                @Override
+                public void handle(AsyncResult<Void> result) {
+                  if (result.succeeded()) {
+                    log.info("Successfully undeploy HA deployment " + deploymentInfo.id() + " as there is no quorum");
+                    addVerticleToHADeployList(deploymentID, deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(),
+                        deploymentInfo.instances(), deploymentInfo.includes(), new AsyncResultHandler<String>() {
+                          @Override
+                          public void handle(AsyncResult<String> result) {
+                            if (result.succeeded()) {
+                              log.info("Successfully redeployed verticle " + deploymentInfo.main() + " after quorum was re-attained");
+                            } else {
+                              log.error("Failed to redeploy verticle " + deploymentInfo.main() + " after quorum was re-attained", result.cause());
+                            }
+                          }
+                    });
+                  } else {
+                    log.error("Failed to undeploy deployment on lost quorum", result.cause());
+                  }
+                }
+              });
+            } finally {
+              vertx.setContext(ctx);
+            }
+          }
         }
       }
     }
@@ -431,7 +647,7 @@ public class XyncHAManager extends HAManager {
   // Handle failover
   private void checkFailover(String failedNodeID, JsonObject theHAInfo) {
     try {
-      JsonArray deployments = theHAInfo.getArray("mods");
+      JsonArray deployments = theHAInfo.getArray("deployments");
       String group = theHAInfo.getString("group");
       String chosen = chooseHashedNode(group, failedNodeID.hashCode());
       if (chosen != null && chosen.equals(this.nodeID)) {
@@ -458,61 +674,111 @@ public class XyncHAManager extends HAManager {
   }
 
   // Process the failover of a deployment
-  private void processFailover(final JsonObject failedModule) {
+  private void processFailover(JsonObject failedDeployment) {
     if (failDuringFailover) {
       throw new VertxException("Oops!");
     }
-    // This method must block until the failover is complete - i.e. the module is successfully redeployed
-    final String moduleName = failedModule.getString("module_name");
-    final String failedDeploymentID = failedModule.getString("dep_id");
-    userIDs.get(failedDeploymentID, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(AsyncResult<String> result) {
-        if (result.failed()) {
-          log.info("Failed to lookup user deployment ID.");
-        }
-        else {
-          final String userID = result.result();
-          if (userID == null) {
-            log.info("No user deployment ID found.");
+
+    final String stype = failedDeployment.getString("type");
+    final DeploymentInfo.Type type = DeploymentInfo.Type.parse(stype);
+    if (type.equals(DeploymentInfo.Type.MODULE)) {
+      final ModuleDeploymentInfo deploymentInfo = new DefaultModuleDeploymentInfo(failedDeployment);
+      final CountDownLatch latch = new CountDownLatch(1);
+      final AtomicReference<Throwable> err = new AtomicReference<>();
+      // Now deploy this module on this node
+      DefaultContext ctx = vertx.getContext();
+      vertx.setContext(null);
+      platformManager.deployModuleAs(deploymentInfo.id(), deploymentInfo.module(), deploymentInfo.config(), deploymentInfo.instances(), new Handler<AsyncResult<String>>() {
+        @Override
+        public void handle(AsyncResult<String> result) {
+          if (result.succeeded()) {
+            log.info("Successfully redeployed module " + deploymentInfo.module() + " after failover");
+          } else {
+            log.error("Failed to redeploy module after failover", result.cause());
+            err.set(result.cause());
           }
-          else {
-            final CountDownLatch latch = new CountDownLatch(1);
-            final AtomicReference<Throwable> err = new AtomicReference<>();
-            // Now deploy this module on this node
-            DefaultContext ctx = vertx.getContext();
-            vertx.setContext(null);
-            platformManager.deployModule(moduleName, failedModule.getObject("conf"), failedModule.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
-              @Override
-              public void handle(AsyncResult<String> result) {
-                if (result.succeeded()) {
-                  log.info("Successfully redeployed module " + moduleName + " after failover");
-                  deployments.put(userID, nodeID);
-                  deploymentIDsSync.put(userID, result.result());
-                  userIDsSync.put(result.result(), userID);
-                } else {
-                  log.error("Failed to redeploy module after failover", result.cause());
-                  err.set(result.cause());
-                }
-                latch.countDown();
-                Throwable t = err.get();
-                if (t != null) {
-                  throw new VertxException(t);
-                }
-              }
-            });
-            vertx.setContext(ctx);
-            try {
-              if (!latch.await(120, TimeUnit.SECONDS)) {
-                throw new VertxException("Timed out waiting for redeploy on failover");
-              }
-            } catch (InterruptedException e) {
-              throw new IllegalStateException(e);
+          latch.countDown();
+          Throwable t = err.get();
+          if (t != null) {
+            throw new VertxException(t);
+          }
+        }
+      });
+      vertx.setContext(ctx);
+      try {
+        if (!latch.await(120, TimeUnit.SECONDS)) {
+          throw new VertxException("Timed out waiting for redeploy on failover");
+        }
+      } catch (InterruptedException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+    else if (type.equals(DeploymentInfo.Type.VERTICLE)) {
+      final boolean isWorker = failedDeployment.getBoolean("worker", false);
+      if (isWorker) {
+        final WorkerVerticleDeploymentInfo deploymentInfo = new DefaultWorkerVerticleDeploymentInfo(failedDeployment);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> err = new AtomicReference<>();
+        // Now deploy this module on this node
+        DefaultContext ctx = vertx.getContext();
+        vertx.setContext(null);
+        platformManager.deployWorkerVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.isMultiThreaded(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
+          @Override
+          public void handle(AsyncResult<String> result) {
+            if (result.succeeded()) {
+              log.info("Successfully redeployed verticle " + deploymentInfo.main() + " after failover");
+            } else {
+              log.error("Failed to redeploy verticle after failover", result.cause());
+              err.set(result.cause());
+            }
+            latch.countDown();
+            Throwable t = err.get();
+            if (t != null) {
+              throw new VertxException(t);
             }
           }
+        });
+        vertx.setContext(ctx);
+        try {
+          if (!latch.await(120, TimeUnit.SECONDS)) {
+            throw new VertxException("Timed out waiting for redeploy on failover");
+          }
+        } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
+        }
+      } else {
+        final VerticleDeploymentInfo deploymentInfo = new DefaultVerticleDeploymentInfo(failedDeployment);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> err = new AtomicReference<>();
+        // Now deploy this module on this node
+        DefaultContext ctx = vertx.getContext();
+        vertx.setContext(null);
+        platformManager.deployVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
+          @Override
+          public void handle(AsyncResult<String> result) {
+            if (result.succeeded()) {
+              log.info("Successfully redeployed verticle " + deploymentInfo.main() + " after failover");
+            } else {
+              log.error("Failed to redeploy verticle after failover", result.cause());
+              err.set(result.cause());
+            }
+            latch.countDown();
+            Throwable t = err.get();
+            if (t != null) {
+              throw new VertxException(t);
+            }
+          }
+        });
+        vertx.setContext(ctx);
+        try {
+          if (!latch.await(120, TimeUnit.SECONDS)) {
+            throw new VertxException("Timed out waiting for redeploy on failover");
+          }
+        } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
         }
       }
-    });
+    }
   }
 
   // Compute the failover node

@@ -15,6 +15,8 @@
  */
 package net.kuujo.xync.cluster.impl;
 
+import java.net.URL;
+
 import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.VerticleDeploymentInfo;
 import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
@@ -159,6 +161,28 @@ public class DefaultWorkerVerticleDeploymentInfo extends DefaultVerticleDeployme
      */
     public Builder setMultiThreaded(boolean multiThreaded) {
       info.multiThreaded = multiThreaded;
+      return this;
+    }
+
+    /**
+     * Sets the verticle classpath.
+     *
+     * @param classpath The verticle classpath.
+     * @return The builder instance.
+     */
+    public Builder setClassPath(URL[] classpath) {
+      info.classpath = classpath;
+      return this;
+    }
+
+    /**
+     * Sets the verticle includes.
+     *
+     * @param includes The verticle includes.
+     * @return The builder instance.
+     */
+    public Builder setIncludes(String includes) {
+      info.includes = includes;
       return this;
     }
 

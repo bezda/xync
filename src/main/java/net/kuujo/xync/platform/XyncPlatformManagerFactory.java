@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.kuujo.xync.cluster;
+package net.kuujo.xync.platform;
+
+import org.vertx.java.platform.PlatformManagerFactory;
 
 /**
- * Worker verticle deployment info.
+ * Platform manager factory.
  *
  * @author Jordan Halterman
  */
-public interface WorkerVerticleDeploymentInfo extends VerticleDeploymentInfo {
+public interface XyncPlatformManagerFactory extends PlatformManagerFactory {
 
-  /**
-   * Indicates whether the worker verticle is multi-threaded.
-   *
-   * @return Indicates whether the worker verticle is multi-threaded.
-   */
-  boolean isMultiThreaded();
+  @Override
+  XyncPlatformManager createPlatformManager(int clusterPort, String clusterHost, int quorumSize, String haGroup);
 
 }
