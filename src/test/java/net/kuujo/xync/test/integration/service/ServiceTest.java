@@ -106,12 +106,17 @@ public class ServiceTest extends XyncTestVerticle {
   @Test
   public void testMissingGet() {
     final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
-    client.get("test", null, new Handler<AsyncResult<String>>() {
+    client.delete("test", new Handler<AsyncResult<Void>>() {
       @Override
-      public void handle(AsyncResult<String> result) {
-        assertTrue(result.succeeded());
-        assertNull(result.result());
-        testComplete();
+      public void handle(AsyncResult<Void> result) {
+        client.get("test", null, new Handler<AsyncResult<String>>() {
+          @Override
+          public void handle(AsyncResult<String> result) {
+            assertTrue(result.succeeded());
+            assertNull(result.result());
+            testComplete();
+          }
+        });
       }
     });
   }
