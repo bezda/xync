@@ -27,7 +27,10 @@ specifically for clustering.
    * [Monitoring keys for changes](#monitoring-keys-for-changes)
 
 ### Installation
-Currently, Vert.x requires some setup to use the Xync cluster manager.
+The easiest method of installation is to simply download the
+[Xync Vert.x distribution](https://bintray.com/kuujo/vertx/vertx-xync/0.0.1/view/general)
+
+Alternatively, you can build Xync and install it manually:
 
 1. Copy the Xync jar into the `VERTX_HOME/lib` directory
 1. Edit your `VERTX_HOME/conf/META-INF/services` file to read
