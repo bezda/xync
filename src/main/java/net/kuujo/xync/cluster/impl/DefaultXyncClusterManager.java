@@ -48,7 +48,7 @@ import org.vertx.java.core.spi.cluster.ClusterManager;
 public class DefaultXyncClusterManager implements XyncClusterManager {
   private static final String DATA_MAP_NAME = "__xync.data";
   private static final String WATCHERS_MAP_NAME = "__xync.watchers";
-  private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
+  private static final String CLUSTER_MAP_NAME = "__xync.cluster";
   private static final String DEFAULT_GROUP = "__DEFAULT__";
 
   private final String nodeID;
@@ -57,7 +57,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   private final XyncPlatformManager platform;
   private final EventBus eventBus;
   private final ClusterManager clusterManager;
-  private final Map<String, String> deployments;
+  private final Map<String, String> cluster;
   private final XyncAsyncMap<String, Object> data;
   private final XyncAsyncMap<String, String> watchers;
 
@@ -105,7 +105,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
     this.platform = platform;
     this.eventBus = vertx.eventBus();
     this.clusterManager = clusterManager;
-    this.deployments = clusterManager.getSyncMap(DEPLOYMENTS_MAP_NAME);
+    this.cluster = clusterManager.getSyncMap(CLUSTER_MAP_NAME);
     this.data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(DATA_MAP_NAME));
     this.watchers = new XyncAsyncMap<String, String>(vertx, clusterManager.<String, String>getSyncMap(WATCHERS_MAP_NAME));
   }
@@ -251,7 +251,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {
-        for (Map.Entry<String, String> entry : DefaultXyncClusterManager.this.deployments.entrySet()) {
+        for (Map.Entry<String, String> entry : DefaultXyncClusterManager.this.cluster.entrySet()) {
           JsonArray deployments = new JsonArray(entry.getValue());
           for (Object deployment : deployments) {
             JsonObject deploymentInfo = (JsonObject) deployment;

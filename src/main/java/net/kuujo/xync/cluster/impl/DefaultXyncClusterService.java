@@ -41,12 +41,12 @@ import org.vertx.java.core.spi.Action;
  */
 public class DefaultXyncClusterService implements XyncClusterService {
   private static final String CLUSTER_ADDRESS = "__CLUSTER__";
-  private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
+  private static final String CLUSTER_MAP_NAME = "__xync.cluster";
   private static final String DEFAULT_GROUP = "__DEFAULT__";
 
   private final VertxInternal vertx;
   private final EventBus eventBus;
-  private final Map<String, String> deployments;
+  private final Map<String, String> cluster;
   private final XyncClusterManager clusterManager;
 
   private final Handler<Message<JsonObject>> messageHandler = new Handler<Message<JsonObject>>() {
@@ -90,7 +90,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   public DefaultXyncClusterService(XyncClusterManager clusterManager) {
     this.vertx = clusterManager.vertx();
     this.eventBus = vertx.eventBus();
-    this.deployments = clusterManager.cluster().getSyncMap(DEPLOYMENTS_MAP_NAME);
+    this.cluster = clusterManager.cluster().getSyncMap(CLUSTER_MAP_NAME);
     this.clusterManager = clusterManager;
   }
 
@@ -200,7 +200,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {
-        for (Map.Entry<String, String> entry : DefaultXyncClusterService.this.deployments.entrySet()) {
+        for (Map.Entry<String, String> entry : DefaultXyncClusterService.this.cluster.entrySet()) {
           JsonArray deployments = new JsonArray(entry.getValue());
           for (Object deployment : deployments) {
             JsonObject deploymentInfo = (JsonObject) deployment;
