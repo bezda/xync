@@ -76,7 +76,7 @@ public class ServiceTest extends XyncTestVerticle {
         client.undeployModule("test3", new Handler<AsyncResult<Void>>() {
           @Override
           public void handle(AsyncResult<Void> result) {
-            assertTrue(result.succeeded());System.out.println(result.cause());
+            assertTrue(result.succeeded());
             testComplete();
           }
         });
