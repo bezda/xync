@@ -142,8 +142,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           eventBus.registerHandler(group, messageHandler, doneHandler);
         }
       }
@@ -159,8 +158,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
         if (result.failed()) {
           eventBus.unregisterHandler(nodeID, internalHandler);
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           eventBus.unregisterHandler(nodeID, internalHandler, doneHandler);
         }
       }
@@ -252,12 +250,15 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
       @Override
       public String perform() {
         for (Map.Entry<String, String> entry : DefaultXyncClusterManager.this.cluster.entrySet()) {
-          JsonArray deployments = new JsonArray(entry.getValue());
-          for (Object deployment : deployments) {
-            JsonObject deploymentInfo = (JsonObject) deployment;
-            String id = deploymentInfo.getString("id");
-            if (id != null && id.equals(deploymentID)) {
-              return entry.getKey();
+          JsonObject info = new JsonObject(entry.getValue());
+          JsonArray deployments = info.getArray("deployments");
+          if (deployments != null) {
+            for (Object deployment : deployments) {
+              JsonObject deploymentInfo = (JsonObject) deployment;
+              String id = deploymentInfo.getString("id");
+              if (id != null && id.equals(deploymentID)) {
+                return entry.getKey();
+              }
             }
           }
         }

@@ -201,12 +201,15 @@ public class DefaultXyncClusterService implements XyncClusterService {
       @Override
       public String perform() {
         for (Map.Entry<String, String> entry : DefaultXyncClusterService.this.cluster.entrySet()) {
-          JsonArray deployments = new JsonArray(entry.getValue());
-          for (Object deployment : deployments) {
-            JsonObject deploymentInfo = (JsonObject) deployment;
-            String id = deploymentInfo.getString("id");
-            if (id != null && id.equals(deploymentID)) {
-              return entry.getKey();
+          JsonObject info = new JsonObject(entry.getValue());
+          JsonArray deployments = info.getArray("deployments");
+          if (deployments != null) {
+            for (Object deployment : deployments) {
+              JsonObject deploymentInfo = (JsonObject) deployment;
+              String id = deploymentInfo.getString("id");
+              if (id != null && id.equals(deploymentID)) {
+                return entry.getKey();
+              }
             }
           }
         }
@@ -257,8 +260,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok"));
         }
       }
@@ -282,8 +284,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Object> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
         }
       }
@@ -305,8 +306,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok"));
         }
       }
@@ -328,8 +328,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
         }
       }
@@ -357,8 +356,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
     if (sevent != null) {
       try {
         event = Event.Type.parse(sevent);
-      }
-      catch (IllegalArgumentException e) {
+      } catch (IllegalArgumentException e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
         return;
       }
@@ -369,8 +367,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok"));
         }
       }
@@ -398,8 +395,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
     if (sevent != null) {
       try {
         event = Event.Type.parse(sevent);
-      }
-      catch (IllegalArgumentException e) {
+      } catch (IllegalArgumentException e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
         return;
       }
@@ -410,8 +406,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
+        } else {
           message.reply(new JsonObject().putString("status", "ok"));
         }
       }

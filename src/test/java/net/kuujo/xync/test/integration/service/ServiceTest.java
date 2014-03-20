@@ -55,11 +55,11 @@ public class ServiceTest extends XyncTestVerticle {
   @Test
   public void testDeployModuleToGroup() {
     final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
-    client.deployModuleTo("test1", "__DEFAULT__", "net.kuujo~xync-test1~1.0", new JsonObject(), 1, new Handler<AsyncResult<String>>() {
+    client.deployModuleTo("test2", "__DEFAULT__", "net.kuujo~xync-test1~1.0", new JsonObject(), 1, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         assertTrue(result.succeeded());
-        assertEquals("test1", result.result());
+        assertEquals("test2", result.result());
         testComplete();
       }
     });
@@ -68,15 +68,15 @@ public class ServiceTest extends XyncTestVerticle {
   @Test
   public void testUndeployModule() {
     final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
-    client.deployModule("test1", "net.kuujo~xync-test1~1.0", new Handler<AsyncResult<String>>() {
+    client.deployModule("test3", "net.kuujo~xync-test1~1.0", new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         assertTrue(result.succeeded());
-        assertEquals("test1", result.result());
-        client.undeployModule("test1", new Handler<AsyncResult<Void>>() {
+        assertEquals("test3", result.result());
+        client.undeployModule("test3", new Handler<AsyncResult<Void>>() {
           @Override
-          public void handle(AsyncResult<Void> result) {System.out.println(result.cause().getMessage());
-            assertTrue(result.succeeded());
+          public void handle(AsyncResult<Void> result) {
+            assertTrue(result.succeeded());System.out.println(result.cause());
             testComplete();
           }
         });
@@ -87,12 +87,12 @@ public class ServiceTest extends XyncTestVerticle {
   @Test
   public void testUndeployModuleToGroup() {
     final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
-    client.deployModuleTo("test1", "__DEFAULT__", "net.kuujo~xync-test1~1.0", new JsonObject(), 1, new Handler<AsyncResult<String>>() {
+    client.deployModuleTo("test4", "__DEFAULT__", "net.kuujo~xync-test1~1.0", new JsonObject(), 1, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         assertTrue(result.succeeded());
-        assertEquals("test1", result.result());
-        client.undeployModule("test1", new Handler<AsyncResult<Void>>() {
+        assertEquals("test4", result.result());
+        client.undeployModule("test4", new Handler<AsyncResult<Void>>() {
           @Override
           public void handle(AsyncResult<Void> result) {
             assertTrue(result.succeeded());

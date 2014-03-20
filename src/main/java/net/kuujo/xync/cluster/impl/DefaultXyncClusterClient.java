@@ -73,13 +73,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<String>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<String>(result.result().body().getString("id")).setHandler(doneHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<String>(new VertxException(result.result().body().getString("message"))).setHandler(doneHandler);
           }
         }
@@ -121,13 +119,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<String>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<String>(result.result().body().getString("id")).setHandler(doneHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<String>(new VertxException(result.result().body().getString("message"))).setHandler(doneHandler);
           }
         }
@@ -147,13 +143,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<Void>(new VertxException(result.result().body().getString("message"))).setHandler(doneHandler);
           }
         }
@@ -178,13 +172,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<Void>(new VertxException(result.result().body().getString("message"))).setHandler(doneHandler);
           }
         }
@@ -210,13 +202,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<T>(result.cause()).setHandler(resultHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<T>((T) result.result().body().getValue("result")).setHandler(resultHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<T>(new VertxException(result.result().body().getString("message"))).setHandler(resultHandler);
           }
         }
@@ -240,13 +230,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<Void>(new VertxException(result.result().body().getString("message"))).setHandler(doneHandler);
           }
         }
@@ -265,13 +253,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Message<JsonObject>> result) {
         if (result.failed()) {
           new DefaultFutureResult<Boolean>(result.cause()).setHandler(resultHandler);
-        }
-        else {
+        } else {
           String status = result.result().body().getString("status");
           if (status.equals("ok")) {
             new DefaultFutureResult<Boolean>(result.result().body().getBoolean("result")).setHandler(resultHandler);
-          }
-          else {
+          } else {
             new DefaultFutureResult<Boolean>(new VertxException(result.result().body().getString("message"))).setHandler(resultHandler);
           }
         }
@@ -312,13 +298,11 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           final Map<Handler<Event>, HandlerWrapper> handlers;
           if (watchHandlers.containsKey(key)) {
             handlers = watchHandlers.get(key);
-          }
-          else {
+          } else {
             handlers = new HashMap<>();
             watchHandlers.put(key, handlers);
           }
@@ -332,15 +316,13 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
                 eventBus.unregisterHandler(id, watchHandler);
                 handlers.remove(handler);
                 new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-              }
-              else {
+              } else {
                 JsonObject body = result.result().body();
                 if (body.getString("status").equals("error")) {
                   eventBus.unregisterHandler(id, watchHandler);
                   handlers.remove(handler);
                   new DefaultFutureResult<Void>(new VertxException(body.getString("message"))).setHandler(doneHandler);
-                }
-                else {
+                } else {
                   new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
                 }
               }
@@ -384,8 +366,7 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
           HandlerWrapper wrapper = handlers.remove(handler);
           eventBus.unregisterHandler(wrapper.address, wrapper.messageHandler);
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        }
-        else {
+        } else {
           HandlerWrapper wrapper = handlers.remove(handler);
           eventBus.unregisterHandler(wrapper.address, wrapper.messageHandler, doneHandler);
         }
