@@ -181,39 +181,6 @@ public class ServiceTest extends XyncTestVerticle {
   }
 
   @Test
-  public void testKeys() {
-    final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
-    client.set("test1", "Hello world!", new Handler<AsyncResult<Void>>() {
-      @Override
-      public void handle(AsyncResult<Void> result) {
-        assertTrue(result.succeeded());
-        client.set("test2", "Hello world!", new Handler<AsyncResult<Void>>() {
-          @Override
-          public void handle(AsyncResult<Void> result) {
-            assertTrue(result.succeeded());
-            client.set("test3", "Hello world!", new Handler<AsyncResult<Void>>() {
-              @Override
-              public void handle(AsyncResult<Void> result) {
-                assertTrue(result.succeeded());
-                client.keys(new Handler<AsyncResult<Set<String>>>() {
-                  @Override
-                  public void handle(AsyncResult<Set<String>> result) {
-                    assertTrue(result.succeeded());
-                    assertTrue(result.result().contains("test1"));
-                    assertTrue(result.result().contains("test2"));
-                    assertTrue(result.result().contains("test3"));
-                    testComplete();
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-  }
-
-  @Test
   public void testWatchCreate() {
     final String key = UUID.randomUUID().toString();
     final XyncClusterClient client = new DefaultXyncClusterClient(vertx.eventBus());
