@@ -15,8 +15,6 @@
  */
 package net.kuujo.xync.cluster;
 
-import java.util.Set;
-
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonObject;
@@ -196,14 +194,6 @@ public interface XyncClusterClient {
    * @return The cluster client.
    */
   XyncClusterClient exists(String key, Handler<AsyncResult<Boolean>> resultHandler);
-
-  /**
-   * Gets a list of available keys in the cluster.
-   *
-   * @param resultHandler An asynchronous handler to be called with the result.
-   * @return The cluster client.
-   */
-  XyncClusterClient keys(Handler<AsyncResult<Set<String>>> resultHandler);
 
   /**
    * Watches a key in the cluster for all events.

@@ -1,9 +1,7 @@
 package net.kuujo.xync.cluster.impl;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import net.kuujo.xync.cluster.Event;
@@ -16,7 +14,6 @@ import org.vertx.java.core.VertxException;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.impl.DefaultFutureResult;
-import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 /**
@@ -276,34 +273,6 @@ public class DefaultXyncClusterClient implements XyncClusterClient {
           }
           else {
             new DefaultFutureResult<Boolean>(new VertxException(result.result().body().getString("message"))).setHandler(resultHandler);
-          }
-        }
-      }
-    });
-    return this;
-  }
-
-  @Override
-  public XyncClusterClient keys(final Handler<AsyncResult<Set<String>>> resultHandler) {
-    JsonObject message = new JsonObject().putString("action", "keys");
-    eventBus.sendWithTimeout(CLUSTER_ADDRESS, message, 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
-      @Override
-      public void handle(AsyncResult<Message<JsonObject>> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Set<String>>(result.cause()).setHandler(resultHandler);
-        }
-        else {
-          String status = result.result().body().getString("status");
-          if (status.equals("ok")) {
-            JsonArray keys = result.result().body().getArray("result");
-            Set<String> results = new HashSet<>();
-            for (Object key : keys) {
-              results.add((String) key);
-            }
-            new DefaultFutureResult<Set<String>>(results).setHandler(resultHandler);
-          }
-          else {
-            new DefaultFutureResult<Set<String>>(new VertxException(result.result().body().getString("message"))).setHandler(resultHandler);
           }
         }
       }
