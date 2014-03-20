@@ -468,21 +468,6 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   }
 
   @Override
-  public XyncClusterManager keys(final Handler<AsyncResult<Set<String>>> resultHandler) {
-    data.keySet(new Handler<AsyncResult<Set<String>>>() {
-      @Override
-      public void handle(AsyncResult<Set<String>> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Set<String>>(result.cause()).setHandler(resultHandler);
-        } else {
-          new DefaultFutureResult<Set<String>>(result.result()).setHandler(resultHandler);
-        }
-      }
-    });
-    return this;
-  }
-
-  @Override
   public XyncClusterManager watch(String address, String key, Handler<AsyncResult<Void>> doneHandler) {
     return watch(address, key, null, doneHandler);
   }

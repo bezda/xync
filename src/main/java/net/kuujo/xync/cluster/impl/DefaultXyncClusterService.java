@@ -16,7 +16,6 @@
 package net.kuujo.xync.cluster.impl;
 
 import java.util.Map;
-import java.util.Set;
 
 import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.Event;
@@ -73,9 +72,6 @@ public class DefaultXyncClusterService implements XyncClusterService {
             break;
           case "exists":
             doExists(message);
-            break;
-          case "keys":
-            doKeys(message);
             break;
           case "watch":
             doWatch(message);
@@ -335,23 +331,6 @@ public class DefaultXyncClusterService implements XyncClusterService {
         }
         else {
           message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
-        }
-      }
-    });
-  }
-
-  /**
-   * Handles a cluster keys command.
-   */
-  private void doKeys(final Message<JsonObject> message) {
-    clusterManager.keys(new Handler<AsyncResult<Set<String>>>() {
-      @Override
-      public void handle(AsyncResult<Set<String>> result) {
-        if (result.failed()) {
-          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else {
-          message.reply(new JsonObject().putString("status", "ok").putArray("result", new JsonArray(result.result().toArray(new String[result.result().size()]))));
         }
       }
     });

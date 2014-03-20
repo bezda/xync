@@ -215,14 +215,6 @@ public interface XyncClusterManager {
   XyncClusterManager exists(String key, Handler<AsyncResult<Boolean>> resultHandler);
 
   /**
-   * Gets a list of keys in the cluster.
-   *
-   * @param resultHandler An asynchronous handler to be called with a set of all available keys.
-   * @return The cluster manager.
-   */
-  XyncClusterManager keys(Handler<AsyncResult<Set<String>>> resultHandler);
-
-  /**
    * Watches a key in the cluster for all events.
    *
    * @param key The key to watch.
