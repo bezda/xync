@@ -17,15 +17,17 @@ package net.kuujo.xync.platform.impl;
 
 import java.util.UUID;
 
+import net.kuujo.xync.platform.XyncPlatformManager;
+import net.kuujo.xync.platform.XyncPlatformManagerFactory;
+
 import org.vertx.java.platform.PlatformManager;
-import org.vertx.java.platform.PlatformManagerFactory;
 
 /**
  * Xing platform manager factory.
  *
  * @author Jordan Halterman
  */
-public class XyncPlatformManagerFactory implements PlatformManagerFactory {
+public class DefaultXyncPlatformManagerFactory implements XyncPlatformManagerFactory {
 
   @Override
   public PlatformManager createPlatformManager() {
@@ -38,7 +40,7 @@ public class XyncPlatformManagerFactory implements PlatformManagerFactory {
   }
 
   @Override
-  public PlatformManager createPlatformManager(int clusterPort, String clusterHost, int quorumSize, String group) {
+  public XyncPlatformManager createPlatformManager(int clusterPort, String clusterHost, int quorumSize, String group) {
     return new DefaultXyncPlatformManager(clusterPort, clusterHost, quorumSize, group);
   }
 

@@ -20,7 +20,6 @@ import static org.vertx.testtools.VertxAssert.assertNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
-import java.util.Set;
 import java.util.UUID;
 
 import net.kuujo.xync.cluster.Event;
@@ -76,7 +75,7 @@ public class ServiceTest extends XyncTestVerticle {
         assertEquals("test1", result.result());
         client.undeployModule("test1", new Handler<AsyncResult<Void>>() {
           @Override
-          public void handle(AsyncResult<Void> result) {
+          public void handle(AsyncResult<Void> result) {System.out.println(result.cause().getMessage());
             assertTrue(result.succeeded());
             testComplete();
           }
