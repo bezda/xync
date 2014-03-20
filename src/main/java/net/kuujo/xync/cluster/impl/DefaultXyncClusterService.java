@@ -21,9 +21,10 @@ import java.util.Set;
 import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.Event;
 import net.kuujo.xync.cluster.ModuleDeploymentInfo;
+import net.kuujo.xync.cluster.VerticleDeploymentInfo;
+import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
 import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.XyncClusterService;
-import net.kuujo.xync.cluster.impl.DefaultModuleDeploymentInfo;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -40,8 +41,9 @@ import org.vertx.java.core.spi.Action;
  * @author Jordan Halterman
  */
 public class DefaultXyncClusterService implements XyncClusterService {
-  private final String CLUSTER_ADDRESS = "cluster";
+  private static final String CLUSTER_ADDRESS = "__CLUSTER__";
   private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
+  private static final String DEFAULT_GROUP = "__DEFAULT__";
 
   private final VertxInternal vertx;
   private final EventBus eventBus;
@@ -113,25 +115,40 @@ public class DefaultXyncClusterService implements XyncClusterService {
   private void doDeploy(final Message<JsonObject> message) {
     String stype = message.body().getString("type");
     if (stype == null) {
-      // TODO support verticle deployments
-      // message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment type."));
-      // return;
-      // For now we just support module deployments
-      stype = "module";
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment type."));
+      return;
     }
 
-    DeploymentInfo.Type type = DeploymentInfo.Type.parse(stype);
-    if (type.equals(DeploymentInfo.Type.MODULE)) {
-      final ModuleDeploymentInfo deploymentInfo = new DefaultModuleDeploymentInfo(message.body());
+    // Parse the deployment type.
+    DeploymentInfo.Type type;
+    try {
+      type = DeploymentInfo.Type.parse(stype);
+    } catch (IllegalArgumentException e) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Unsupported deployment type."));
+      return;
+    }
 
-      // If the deployment info indicates a deployment group then attempt to forward
-      // the deployment to the appropriate group.
-      String group = deploymentInfo.group();
-      if (group == null) {
-        group = "__DEFAULT__";
-      }
+    // If the deployment info indicates a deployment group then attempt to forward
+    // the deployment to the appropriate group.
+    String group = message.body().getString("group");
+    if (group == null) {
+      group = DEFAULT_GROUP;
+    }
 
-      if (group.equals(clusterManager.group())) {
+    if (!group.equals(clusterManager.group())) {
+      eventBus.sendWithTimeout(group, message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
+        @Override
+        public void handle(AsyncResult<Message<JsonObject>> result) {
+          if (result.failed()) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+          } else {
+            message.reply(result.result().body());
+          }
+        }
+      });
+    } else {
+      if (type.equals(DeploymentInfo.Type.MODULE)) {
+        final ModuleDeploymentInfo deploymentInfo = new DefaultModuleDeploymentInfo(message.body());
         clusterManager.deployModuleAs(deploymentInfo.id(), deploymentInfo.module(), deploymentInfo.config(), deploymentInfo.instances(), new Handler<AsyncResult<String>>() {
           @Override
           public void handle(AsyncResult<String> result) {
@@ -142,20 +159,34 @@ public class DefaultXyncClusterService implements XyncClusterService {
             }
           }
         });
-      } else {
-        eventBus.sendWithTimeout(group, message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
-          @Override
-          public void handle(AsyncResult<Message<JsonObject>> result) {
-            if (result.failed()) {
-              message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-            } else {
-              message.reply(result.result().body());
+      } else if (type.equals(DeploymentInfo.Type.VERTICLE)) {
+        boolean isWorker = message.body().getBoolean("worker", false);
+        if (isWorker) {
+          final WorkerVerticleDeploymentInfo deploymentInfo = new DefaultWorkerVerticleDeploymentInfo(message.body());
+          clusterManager.deployWorkerVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.isMultiThreaded(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
+            @Override
+            public void handle(AsyncResult<String> result) {
+              if (result.failed()) {
+                message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+              } else {
+                message.reply(new JsonObject().putString("status", "ok").putString("id", deploymentInfo.id()));
+              }
             }
-          }
-        });
+          });
+        } else {
+          final VerticleDeploymentInfo deploymentInfo = new DefaultVerticleDeploymentInfo(message.body());
+          clusterManager.deployVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
+            @Override
+            public void handle(AsyncResult<String> result) {
+              if (result.failed()) {
+                message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+              } else {
+                message.reply(new JsonObject().putString("status", "ok").putString("id", deploymentInfo.id()));
+              }
+            }
+          });
+        }
       }
-    } else {
-      message.reply(new JsonObject().putString("status", "error").putString("message", "Unsupported deployment type."));
     }
   }
 
@@ -173,18 +204,26 @@ public class DefaultXyncClusterService implements XyncClusterService {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {
-        return deployments.get(deploymentID);
+        for (Map.Entry<String, String> entry : DefaultXyncClusterService.this.deployments.entrySet()) {
+          JsonArray deployments = new JsonArray(entry.getValue());
+          for (Object deployment : deployments) {
+            JsonObject deploymentInfo = (JsonObject) deployment;
+            String id = deploymentInfo.getString("id");
+            if (id != null && id.equals(deploymentID)) {
+              return entry.getKey();
+            }
+          }
+        }
+        return null;
       }
     }, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else if (result.result() == null) {
+        } else if (result.result() == null) {
           message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment ID."));
-        }
-        else {
+        } else {
           String nodeID = result.result();
           eventBus.sendWithTimeout(nodeID, message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
@@ -201,6 +240,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster set command.
+   */
   private void doSet(final Message<JsonObject> message) {
     final String key = message.body().getString("key");
     if (key == null) {
@@ -227,6 +269,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster get command.
+   */
   private void doGet(final Message<JsonObject> message) {
     final String key = message.body().getString("key");
     if (key == null) {
@@ -249,6 +294,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster delete command.
+   */
   private void doDelete(final Message<JsonObject> message) {
     final String key = message.body().getString("key");
     if (key == null) {
@@ -269,6 +317,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster exists command.
+   */
   private void doExists(final Message<JsonObject> message) {
     final String key = message.body().getString("key");
     if (key == null) {
@@ -289,6 +340,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster keys command.
+   */
   private void doKeys(final Message<JsonObject> message) {
     clusterManager.keys(new Handler<AsyncResult<Set<String>>>() {
       @Override
@@ -303,6 +357,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster watch command.
+   */
   private void doWatch(final Message<JsonObject> message) {
     String key = message.body().getString("key");
     if (key == null) {
@@ -341,6 +398,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
     });
   }
 
+  /**
+   * Handles a cluster unwatch command.
+   */
   private void doUnwatch(final Message<JsonObject> message) {
     String key = message.body().getString("key");
     if (key == null) {

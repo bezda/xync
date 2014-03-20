@@ -15,14 +15,16 @@
  */
 package net.kuujo.xync.cluster;
 
+import java.net.URL;
 import java.util.Set;
+
+import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.spi.cluster.ClusterManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  * Xync cluster manager.
@@ -57,7 +59,7 @@ public interface XyncClusterManager {
    *
    * @return The internal platform manager.
    */
-  PlatformManagerInternal platform();
+  XyncPlatformManager platform();
 
   /**
    * Returns the current Vert.x cluster manager.
@@ -108,11 +110,25 @@ public interface XyncClusterManager {
    * @param deploymentID The verticle deployment ID.
    * @param main The verticle main.
    * @param config The verticle configuration.
+   * @param classpath The verticle classpath.
    * @param instances The number of instances to deploy.
    * @param doneHandler An asynchronous handler to be called once the verticle is deployed.
    * @return The cluster manager.
    */
-  XyncClusterManager deployVerticleAs(String deploymentID, String main, JsonObject config, int instances, Set<String> includes, Handler<AsyncResult<String>> doneHandler);
+  XyncClusterManager deployVerticleAs(String deploymentID, String main, JsonObject config, URL[] classpath, int instances, String includes, Handler<AsyncResult<String>> doneHandler);
+
+  /**
+   * Deploys a verticle to the cluster.
+   *
+   * @param deploymentID The verticle deployment ID.
+   * @param main The verticle main.
+   * @param config The verticle configuration.
+   * @param classpath The verticle classpath.
+   * @param instances The number of instances to deploy.
+   * @param doneHandler An asynchronous handler to be called once the verticle is deployed.
+   * @return The cluster manager.
+   */
+  XyncClusterManager deployVerticleAs(String deploymentID, String main, JsonObject config, URL[] classpath, int instances, Set<String> includes, Handler<AsyncResult<String>> doneHandler);
 
   /**
    * Undeploys a verticle in the cluster.
@@ -129,12 +145,27 @@ public interface XyncClusterManager {
    * @param deploymentID The verticle deployment ID.
    * @param main The verticle main.
    * @param config The verticle configuration.
+   * @param classpath The verticle classpath.
    * @param instances The number of instances to deploy.
    * @param multiThreaded Whether the worker is multi-threaded.
    * @param doneHandler An asynchronous handler to be called once the verticle is deployed.
    * @return The cluster manager.
    */
-  XyncClusterManager deployWorkerVerticleAs(String deploymentID, String main, JsonObject config, int instances, boolean multiThreaded, Set<String> includes, Handler<AsyncResult<String>> doneHandler);
+  XyncClusterManager deployWorkerVerticleAs(String deploymentID, String main, JsonObject config, URL[] classpath, int instances, boolean multiThreaded, String includes, Handler<AsyncResult<String>> doneHandler);
+
+  /**
+   * Deploys a verticle to the cluster.
+   *
+   * @param deploymentID The verticle deployment ID.
+   * @param main The verticle main.
+   * @param config The verticle configuration.
+   * @param classpath The verticle classpath.
+   * @param instances The number of instances to deploy.
+   * @param multiThreaded Whether the worker is multi-threaded.
+   * @param doneHandler An asynchronous handler to be called once the verticle is deployed.
+   * @return The cluster manager.
+   */
+  XyncClusterManager deployWorkerVerticleAs(String deploymentID, String main, JsonObject config, URL[] classpath, int instances, boolean multiThreaded, Set<String> includes, Handler<AsyncResult<String>> doneHandler);
 
   /**
    * Undeploys a worker verticle in the cluster.

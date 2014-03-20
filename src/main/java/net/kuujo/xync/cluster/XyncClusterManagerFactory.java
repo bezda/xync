@@ -15,9 +15,10 @@
  */
 package net.kuujo.xync.cluster;
 
+import net.kuujo.xync.platform.XyncPlatformManager;
+
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.spi.cluster.ClusterManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  * Cluster manager factory.
@@ -35,6 +36,6 @@ public interface XyncClusterManagerFactory {
    * @param clusterManager The Vert.x cluster manager.
    * @return A new Xing cluster manager instance.
    */
-  public XyncClusterManager createClusterManager(String group, VertxInternal vertx, PlatformManagerInternal platformManager, ClusterManager clusterManager);
+  public XyncClusterManager createClusterManager(String group, VertxInternal vertx, XyncPlatformManager platformManager, ClusterManager clusterManager);
 
 }

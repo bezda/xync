@@ -15,16 +15,19 @@
  */
 package net.kuujo.xync.cluster.impl;
 
+import java.net.URL;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.Event;
-import net.kuujo.xync.cluster.ModuleDeploymentInfo;
-import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.Event.Type;
-import net.kuujo.xync.cluster.impl.XyncAsyncMap;
+import net.kuujo.xync.cluster.ModuleDeploymentInfo;
+import net.kuujo.xync.cluster.VerticleDeploymentInfo;
+import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
+import net.kuujo.xync.cluster.XyncClusterManager;
+import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -36,7 +39,6 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.spi.Action;
 import org.vertx.java.core.spi.cluster.ClusterManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  * Default cluster manager implementation.
@@ -47,18 +49,15 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   private static final String DATA_MAP_NAME = "__xync.data";
   private static final String WATCHERS_MAP_NAME = "__xync.watchers";
   private static final String DEPLOYMENTS_MAP_NAME = "__xync.deployments";
-  private static final String DEPLOYMENT_IDS_MAP_NAME = "__xync.deploymentIDs";
-  private static final String USER_IDS_MAP_NAME = "__xync.userIDs";
+  private static final String DEFAULT_GROUP = "__DEFAULT__";
 
   private final String nodeID;
   private final String group;
   private final VertxInternal vertx;
-  private final PlatformManagerInternal platform;
+  private final XyncPlatformManager platform;
   private final EventBus eventBus;
   private final ClusterManager clusterManager;
   private final Map<String, String> deployments;
-  private final Map<String, String> deploymentIDs;
-  private final Map<String, String> userIDs;
   private final XyncAsyncMap<String, Object> data;
   private final XyncAsyncMap<String, String> watchers;
 
@@ -99,16 +98,14 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
     }
   };
 
-  public DefaultXyncClusterManager(String group, VertxInternal vertx, PlatformManagerInternal platform, ClusterManager clusterManager) {
+  public DefaultXyncClusterManager(String group, VertxInternal vertx, XyncPlatformManager platform, ClusterManager clusterManager) {
     this.nodeID = clusterManager.getNodeID();
-    this.group = group != null ? group : "__DEFAULT__";
+    this.group = group != null ? group : DEFAULT_GROUP;
     this.vertx = vertx;
     this.platform = platform;
     this.eventBus = vertx.eventBus();
     this.clusterManager = clusterManager;
     this.deployments = clusterManager.getSyncMap(DEPLOYMENTS_MAP_NAME);
-    this.deploymentIDs = clusterManager.getSyncMap(DEPLOYMENT_IDS_MAP_NAME);
-    this.userIDs = clusterManager.getSyncMap(USER_IDS_MAP_NAME);
     this.data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(DATA_MAP_NAME));
     this.watchers = new XyncAsyncMap<String, String>(vertx, clusterManager.<String, String>getSyncMap(WATCHERS_MAP_NAME));
   }
@@ -129,7 +126,7 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   }
 
   @Override
-  public PlatformManagerInternal platform() {
+  public XyncPlatformManager platform() {
     return platform;
   }
 
@@ -176,28 +173,55 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   private void doDeploy(final Message<JsonObject> message) {
     String stype = message.body().getString("type");
     if (stype == null) {
-      // TODO support verticle deployments
-      // message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment type."));
-      // return;
-      // For now we just support module deployments
-      stype = "module";
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment type."));
+      return;
+    }
+
+    // If the deployment info indicates a group other than the current cluster
+    // group then return an error.
+    String group = message.body().getString("group");
+    if (group == null) {
+      group = DEFAULT_GROUP;
+    }
+
+    if (!group.equals(this.group)) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment group."));
+      return;
     }
 
     DeploymentInfo.Type type = DeploymentInfo.Type.parse(stype);
     if (type.equals(DeploymentInfo.Type.MODULE)) {
       final ModuleDeploymentInfo deploymentInfo = new DefaultModuleDeploymentInfo(message.body());
 
-      // If the deployment info indicates a group other than the current cluster
-      // group then return an error.
-      String group = deploymentInfo.group();
-      if (group == null) {
-        group = "__DEFAULT__";
-      }
+      deployModuleAs(deploymentInfo.id(), deploymentInfo.module(), deploymentInfo.config(), deploymentInfo.instances(), new Handler<AsyncResult<String>>() {
+        @Override
+        public void handle(AsyncResult<String> result) {
+          if (result.failed()) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+          } else {
+            message.reply(new JsonObject().putString("status", "ok").putString("id", deploymentInfo.id()));
+          }
+        }
+      });
+    } else if (type.equals(DeploymentInfo.Type.VERTICLE)) {
+      boolean isWorker = message.body().getBoolean("worker", false);
+      if (isWorker) {
+        final WorkerVerticleDeploymentInfo deploymentInfo = new DefaultWorkerVerticleDeploymentInfo(message.body());
 
-      if (!group.equals(this.group)) {
-        message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment group."));
+        deployWorkerVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.isMultiThreaded(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
+          @Override
+          public void handle(AsyncResult<String> result) {
+            if (result.failed()) {
+              message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+            } else {
+              message.reply(new JsonObject().putString("status", "ok").putString("id", deploymentInfo.id()));
+            }
+          }
+        });
       } else {
-        deployModuleAs(deploymentInfo.id(), deploymentInfo.module(), deploymentInfo.config(), deploymentInfo.instances(), new Handler<AsyncResult<String>>() {
+        final VerticleDeploymentInfo deploymentInfo = new DefaultVerticleDeploymentInfo(message.body());
+
+        deployVerticleAs(deploymentInfo.id(), deploymentInfo.main(), deploymentInfo.config(), deploymentInfo.classpath(), deploymentInfo.instances(), deploymentInfo.includes(), new Handler<AsyncResult<String>>() {
           @Override
           public void handle(AsyncResult<String> result) {
             if (result.failed()) {
@@ -227,18 +251,26 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {
-        return deployments.get(deploymentID);
+        for (Map.Entry<String, String> entry : DefaultXyncClusterManager.this.deployments.entrySet()) {
+          JsonArray deployments = new JsonArray(entry.getValue());
+          for (Object deployment : deployments) {
+            JsonObject deploymentInfo = (JsonObject) deployment;
+            String id = deploymentInfo.getString("id");
+            if (id != null && id.equals(deploymentID)) {
+              return entry.getKey();
+            }
+          }
+        }
+        return null;
       }
     }, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        }
-        else if (result.result() == null) {
+        } else if (result.result() == null) {
           message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment ID."));
-        }
-        else {
+        } else {
           String nodeID = result.result();
           eventBus.sendWithTimeout(nodeID, message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
@@ -279,90 +311,47 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
 
   @Override
   public XyncClusterManager deployModuleAs(final String deploymentID, String moduleName, JsonObject config, int instances, final Handler<AsyncResult<String>> doneHandler) {
-    platform.deployModule(moduleName, config, instances, true, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(final AsyncResult<String> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<String>(result.cause()).setHandler(doneHandler);
-        } else {
-          final String internalID = result.result();
-
-          // Store the deployment ID so that other nodes can reference it for failover.
-          vertx.executeBlocking(new Action<Void>() {
-            @Override
-            public Void perform() {
-              deployments.put(deploymentID, nodeID);
-              userIDs.put(internalID, deploymentID);
-              deploymentIDs.put(deploymentID, internalID);
-              return null;
-            }
-          }, new Handler<AsyncResult<Void>>() {
-            @Override
-            public void handle(AsyncResult<Void> result) {
-              if (result.failed()) {
-                new DefaultFutureResult<String>(result.cause()).setHandler(doneHandler);
-              } else {
-                new DefaultFutureResult<String>(deploymentID).setHandler(doneHandler);
-              }
-            }
-          });
-        }
-      }
-    });
+    platform.deployModuleAs(deploymentID, moduleName, config, instances, doneHandler);
     return this;
   }
 
   @Override
   public XyncClusterManager undeployModuleAs(final String deploymentID, final Handler<AsyncResult<Void>> doneHandler) {
-    // Look up the local deployment ID.
-    vertx.executeBlocking(new Action<String>() {
-      @Override
-      public String perform() {
-        return deploymentIDs.get(deploymentID);
-      }
-    }, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(AsyncResult<String> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        } else if (result.result() == null) {
-          new DefaultFutureResult<Void>(new IllegalArgumentException("Invalid deployment ID.")).setHandler(doneHandler);
-        } else {
-          platform.undeploy(result.result(), new Handler<AsyncResult<Void>>() {
-            @Override
-            public void handle(AsyncResult<Void> result) {
-              if (result.failed()) {
-                new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-              } else {
-                new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-              }
-            }
-          });
-        }
-      }
-    });
+    platform.undeployModuleAs(deploymentID, doneHandler);
     return this;
   }
 
   @Override
   public XyncClusterManager deployVerticleAs(String deploymentID, String main, JsonObject config,
-      int instances, Set<String> includes, Handler<AsyncResult<String>> doneHandler) {
-    new DefaultFutureResult<String>(new UnsupportedOperationException("Verticle deployments are not currently supported.")).setHandler(doneHandler);
+      URL[] classpath, int instances, Set<String> includes, Handler<AsyncResult<String>> doneHandler) {
+    return deployVerticleAs(deploymentID, main, config, classpath, instances, setToString(includes), doneHandler);
+  }
+
+  @Override
+  public XyncClusterManager deployVerticleAs(String deploymentID, String main, JsonObject config,
+      URL[] classpath, int instances, String includes, Handler<AsyncResult<String>> doneHandler) {
+    platform.deployVerticleAs(deploymentID, main, config, classpath, instances, includes, doneHandler);
     return this;
   }
 
   @Override
-  public XyncClusterManager undeployVerticleAs(String deploymentID,
-      Handler<AsyncResult<Void>> doneHandler) {
-    new DefaultFutureResult<Void>(new UnsupportedOperationException("Verticle deployments are not currently supported.")).setHandler(doneHandler);
+  public XyncClusterManager undeployVerticleAs(String deploymentID, Handler<AsyncResult<Void>> doneHandler) {
+    platform.undeployVerticleAs(deploymentID, doneHandler);
     return this;
   }
 
   @Override
   public XyncClusterManager deployWorkerVerticleAs(String deploymentID, String main,
-      JsonObject config, int instances, boolean multiThreaded, Set<String> includes,
+      JsonObject config, URL[] classpath, int instances, boolean multiThreaded, Set<String> includes,
       Handler<AsyncResult<String>> doneHandler) {
-    new DefaultFutureResult<String>(new UnsupportedOperationException("Worker verticle deployments are not currently supported.")).setHandler(doneHandler);
+    return deployWorkerVerticleAs(deploymentID, main, config, classpath, instances, multiThreaded, setToString(includes), doneHandler);
+  }
+
+  @Override
+  public XyncClusterManager deployWorkerVerticleAs(String deploymentID, String main,
+      JsonObject config, URL[] classpath, int instances, boolean multiThreaded, String includes,
+      Handler<AsyncResult<String>> doneHandler) {
+    platform.deployWorkerVerticleAs(deploymentID, main, config, classpath, instances, multiThreaded, includes, doneHandler);
     return this;
   }
 
@@ -371,6 +360,19 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
       Handler<AsyncResult<Void>> doneHandler) {
     new DefaultFutureResult<Void>(new UnsupportedOperationException("Worker verticle deployments are not currently supported.")).setHandler(doneHandler);
     return this;
+  }
+
+  private static String setToString(Set<String> set) {
+    StringBuilder sset = new StringBuilder();
+    for (String item : set) {
+      if (sset.length() == 0) {
+        sset.append(item);
+      } else {
+        sset.append(",");
+        sset.append(item);
+      }
+    }
+    return sset.toString();
   }
 
   @Override

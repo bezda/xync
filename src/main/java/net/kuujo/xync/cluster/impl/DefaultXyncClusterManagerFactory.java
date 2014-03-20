@@ -17,10 +17,10 @@ package net.kuujo.xync.cluster.impl;
 
 import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.XyncClusterManagerFactory;
+import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.spi.cluster.ClusterManager;
-import org.vertx.java.platform.impl.PlatformManagerInternal;
 
 /**
  * Default Xing cluster manger factory.
@@ -30,7 +30,7 @@ import org.vertx.java.platform.impl.PlatformManagerInternal;
 public class DefaultXyncClusterManagerFactory implements XyncClusterManagerFactory {
 
   @Override
-  public XyncClusterManager createClusterManager(String group, VertxInternal vertx, PlatformManagerInternal platformManager, ClusterManager clusterManager) {
+  public XyncClusterManager createClusterManager(String group, VertxInternal vertx, XyncPlatformManager platformManager, ClusterManager clusterManager) {
     return new DefaultXyncClusterManager(group, vertx, platformManager, clusterManager);
   }
 

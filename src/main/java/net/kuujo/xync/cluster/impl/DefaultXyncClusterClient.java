@@ -25,7 +25,7 @@ import org.vertx.java.core.json.JsonObject;
  * @author Jordan Halterman
  */
 public class DefaultXyncClusterClient implements XyncClusterClient {
-  private static final String CLUSTER_ADDRESS = "cluster";
+  private static final String CLUSTER_ADDRESS = "__CLUSTER__";
   private final EventBus eventBus;
   private final Map<String, Map<Handler<Event>, HandlerWrapper>> watchHandlers = new HashMap<>();
 
