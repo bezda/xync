@@ -31,7 +31,7 @@ public class DefaultXyncPlatformManagerFactory implements XyncPlatformManagerFac
 
   @Override
   public PlatformManager createPlatformManager() {
-    return new DefaultXyncPlatformManager(0, "localhost", 1, UUID.randomUUID().toString());
+    throw new UnsupportedOperationException("Xync platform manager must be run in cluster mode.");
   }
 
   @Override
