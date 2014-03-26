@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.kuujo.xync.cluster.impl;
+package net.kuujo.xync.cluster.data.impl;
 
-import net.kuujo.xync.cluster.Event;
+import net.kuujo.xync.cluster.data.MapEvent;
 
 import org.vertx.java.core.json.JsonObject;
 
@@ -24,14 +24,14 @@ import org.vertx.java.core.json.JsonObject;
  * 
  * @author Jordan Halterman
  */
-public class DefaultEvent implements Event {
+public class DefaultMapEvent<K, V> implements MapEvent<K, V> {
   private Type type;
-  private String key;
-  private Object value;
+  private K key;
+  private V value;
 
-  public DefaultEvent(JsonObject info) {
+  public DefaultMapEvent(JsonObject info) {
     type = Type.parse(info.getString("event"));
-    key = info.getString("key");
+    key = info.getValue("key");
     value = info.getValue("value");
   }
 
@@ -41,21 +41,20 @@ public class DefaultEvent implements Event {
   }
 
   @Override
-  public String key() {
+  public K key() {
     return key;
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <T> T value() {
-    return (T) value;
+  public V value() {
+    return value;
   }
 
   @Override
   public JsonObject toJson() {
     return new JsonObject()
         .putString("type", type.toString())
-        .putString("key", key)
+        .putValue("key", key)
         .putValue("value", value);
   }
 

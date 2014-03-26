@@ -13,51 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.kuujo.xync.cluster;
-
-import net.kuujo.xync.cluster.impl.DefaultEvent;
+package net.kuujo.xync.cluster.data;
 
 import org.vertx.java.core.json.JsonObject;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 /**
- * A cluster event.
- * 
+ * Map event.
+ *
  * @author Jordan Halterman
  */
-@JsonTypeInfo(
-  use=JsonTypeInfo.Id.CLASS,
-  include=JsonTypeInfo.As.PROPERTY,
-  property="class",
-  defaultImpl=DefaultEvent.class
-)
-public interface Event {
+public interface MapEvent<K, V> {
 
   /**
-   * An event type.
-   * 
+   * Map event type.
+   *
    * @author Jordan Halterman
    */
   public static enum Type {
 
     /**
-     * A create event.
+     * Occurs when a key is created.
      */
     CREATE("create"),
 
     /**
-     * A change event.
-     */
-    CHANGE("change"),
-
-    /**
-     * An update event.
+     * Occurs when a key is updated.
      */
     UPDATE("update"),
 
     /**
-     * A delete event.
+     * Occurs when a key is changed (created, updated, or deleted).
+     */
+    CHANGE("change"),
+
+    /**
+     * Occurs when a key is deleted.
      */
     DELETE("delete");
 
@@ -73,11 +63,10 @@ public interface Event {
     }
 
     /**
-     * Parses an event type name.
-     * 
+     * Parses a string into a cluster event type.
+     *
      * @param name The event type name.
-     * @return An event type.
-     * @throws IllegalArgumentException If the event type name is invalid.
+     * @return The event type.
      */
     public static Type parse(String name) {
       switch (name) {
@@ -85,10 +74,12 @@ public interface Event {
           return CREATE;
         case "update":
           return UPDATE;
+        case "change":
+          return CHANGE;
         case "delete":
           return DELETE;
         default:
-          throw new IllegalArgumentException("Invalid event type " + name);
+          throw new IllegalArgumentException(name + " is not a valid event type.");
       }
     }
 
@@ -96,30 +87,30 @@ public interface Event {
 
   /**
    * Returns the event type.
-   * 
-   * @return The event type.
+   *
+   * @return The map event type.
    */
-  Type type();
+  public Type type();
 
   /**
    * Returns the key on which the event occurred.
-   * 
+   *
    * @return The key on which the event occurred.
    */
-  String key();
+  public K key();
 
   /**
-   * Returns the event key value.
-   * 
-   * @return The event key value.
+   * Returns the current key value.
+   *
+   * @return The current key value.
    */
-  <T> T value();
+  public V value();
 
   /**
    * Returns a json representation of the event.
    *
-   * @return The json event.
+   * @return Json representation of the event.
    */
-  JsonObject toJson();
+  public JsonObject toJson();
 
 }

@@ -19,6 +19,7 @@ import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import net.kuujo.xync.cluster.DeploymentInfo;
 import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.XyncClusterService;
 import net.kuujo.xync.cluster.impl.DefaultXyncClusterManagerFactory;
@@ -28,8 +29,10 @@ import net.kuujo.xync.platform.XyncPlatformManager;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
+import org.vertx.java.core.impl.DefaultFutureResult;
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.platform.PlatformManagerException;
 import org.vertx.java.platform.impl.DefaultPlatformManager;
 
 /**
@@ -86,6 +89,26 @@ public class DefaultXyncPlatformManager extends DefaultPlatformManager implement
       latch.await(10, TimeUnit.SECONDS);
     } catch (Exception e) {
       e.printStackTrace();
+    }
+  }
+
+  @Override
+  public void isDeployedAs(String deploymentID, Handler<AsyncResult<Boolean>> resultHandler) {
+    if (xyncHaManager == null) {
+      new DefaultFutureResult<Boolean>(new PlatformManagerException("Deployment info unavailable.")).setHandler(resultHandler);
+    }
+    else {
+      xyncHaManager.isDeployed(deploymentID, resultHandler);
+    }
+  }
+
+  @Override
+  public void getDeploymentInfo(String deploymentID, Handler<AsyncResult<DeploymentInfo>> resultHandler) {
+    if (xyncHaManager == null) {
+      new DefaultFutureResult<DeploymentInfo>(new PlatformManagerException("Deployment info unavailable.")).setHandler(resultHandler);
+    }
+    else {
+      xyncHaManager.getDeploymentInfo(deploymentID, resultHandler);
     }
   }
 

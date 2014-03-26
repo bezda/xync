@@ -42,6 +42,7 @@ import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.VertxException;
 import org.vertx.java.core.impl.DefaultContext;
+import org.vertx.java.core.impl.DefaultFutureResult;
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
@@ -170,6 +171,45 @@ public class XyncHAManager {
     // Call check quorum to compute whether we have an initial quorum
     synchronized (this) {
       checkQuorum();
+    }
+  }
+
+  // Checks if a module or verticle is deployed.
+  public void isDeployed(final String deploymentID, final Handler<AsyncResult<Boolean>> resultHandler) {
+    synchronized (haDeployments) {
+      for (Object deployment : haDeployments) {
+        JsonObject deploymentInfo = (JsonObject) deployment;
+        if (deploymentInfo.getString("id").equals(deploymentID)) {
+          new DefaultFutureResult<Boolean>(true).setHandler(resultHandler);
+          return;
+        }
+      }
+      new DefaultFutureResult<Boolean>(false).setHandler(resultHandler);
+    }
+  }
+
+  // Gets deployment info for a deployment.
+  public void getDeploymentInfo(final String deploymentID, final Handler<AsyncResult<DeploymentInfo>> resultHandler) {
+    synchronized (haDeployments) {
+      for (Object deployment : haDeployments) {
+        JsonObject deploymentInfo = (JsonObject) deployment;
+        if (deploymentInfo.getString("id").equals(deploymentID)) {
+          String stype = deploymentInfo.getString("type");
+          final DeploymentInfo.Type type = DeploymentInfo.Type.parse(stype);
+          if (type.equals(DeploymentInfo.Type.MODULE)) {
+            new DefaultFutureResult<DeploymentInfo>(new DefaultModuleDeploymentInfo(deploymentInfo)).setHandler(resultHandler);
+          } else if (type.equals(DeploymentInfo.Type.VERTICLE)) {
+            boolean isWorker = deploymentInfo.getBoolean("worker", false);
+            if (isWorker) {
+              new DefaultFutureResult<DeploymentInfo>(new DefaultWorkerVerticleDeploymentInfo(deploymentInfo)).setHandler(resultHandler);
+            } else {
+              new DefaultFutureResult<DeploymentInfo>(new DefaultVerticleDeploymentInfo(deploymentInfo)).setHandler(resultHandler);
+            }
+          }
+          return;
+        }
+      }
+      new DefaultFutureResult<DeploymentInfo>((DeploymentInfo) null).setHandler(resultHandler);
     }
   }
 
@@ -408,6 +448,7 @@ public class XyncHAManager {
   private void addModuleToHA(String deploymentID, String internalID, String moduleName, JsonObject conf, int instances) {
     DeploymentInfo info = DefaultModuleDeploymentInfo.Builder.newBuilder()
         .setId(deploymentID)
+        .setNode(nodeID)
         .setModule(moduleName)
         .setConfig(conf)
         .setInstances(instances)
@@ -424,6 +465,7 @@ public class XyncHAManager {
   private void addVerticleToHA(String deploymentID, String internalID, String main, JsonObject conf, URL[] classpath, int instances, String includes) {
     DeploymentInfo info = DefaultVerticleDeploymentInfo.Builder.newBuilder()
         .setId(deploymentID)
+        .setNode(nodeID)
         .setMain(main)
         .setConfig(conf)
         .setInstances(instances)
@@ -442,6 +484,7 @@ public class XyncHAManager {
   private void addWorkerVerticleToHA(String deploymentID, String internalID, String main, JsonObject conf, URL[] classpath, int instances, boolean multiThreaded, String includes) {
     DeploymentInfo info = DefaultWorkerVerticleDeploymentInfo.Builder.newBuilder()
         .setId(deploymentID)
+        .setNode(nodeID)
         .setMain(main)
         .setConfig(conf)
         .setInstances(instances)

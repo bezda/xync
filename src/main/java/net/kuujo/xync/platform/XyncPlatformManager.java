@@ -17,6 +17,8 @@ package net.kuujo.xync.platform;
 
 import java.net.URL;
 
+import net.kuujo.xync.cluster.DeploymentInfo;
+
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonObject;
@@ -28,6 +30,23 @@ import org.vertx.java.platform.impl.PlatformManagerInternal;
  * @author Jordan Halterman
  */
 public interface XyncPlatformManager extends PlatformManagerInternal {
+
+  /**
+   * Checks if a deployment with the given deployment ID exists.
+   *
+   * @param deploymentID The deployment ID to check.
+   * @param resultHandler An asynchronous result handler.
+   */
+  void isDeployedAs(String deploymentID, Handler<AsyncResult<Boolean>> resultHandler);
+
+  /**
+   * Returns deployment info.
+   *
+   * @param deploymentID The deployment ID.
+   * @param resultHandler An asynchronous handler to be called with the deployment info.
+   * @return The platform manager.
+   */
+  void getDeploymentInfo(String deploymentID, Handler<AsyncResult<DeploymentInfo>> resultHandler);
 
   /**
    * Deploys a module.

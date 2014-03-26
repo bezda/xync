@@ -16,17 +16,26 @@
 package net.kuujo.xync.cluster.impl;
 
 import java.net.URL;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import net.kuujo.xync.cluster.DeploymentInfo;
-import net.kuujo.xync.cluster.Event;
-import net.kuujo.xync.cluster.Event.Type;
 import net.kuujo.xync.cluster.ModuleDeploymentInfo;
 import net.kuujo.xync.cluster.VerticleDeploymentInfo;
 import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
 import net.kuujo.xync.cluster.XyncClusterManager;
+import net.kuujo.xync.cluster.data.AsyncIdGenerator;
+import net.kuujo.xync.cluster.data.AsyncList;
+import net.kuujo.xync.cluster.data.AsyncLock;
+import net.kuujo.xync.cluster.data.AsyncQueue;
+import net.kuujo.xync.cluster.data.AsyncSet;
+import net.kuujo.xync.cluster.data.WatchableAsyncMap;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncIdGenerator;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncList;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncLock;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncMap;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncQueue;
+import net.kuujo.xync.cluster.data.impl.HazelcastAsyncSet;
 import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
@@ -42,8 +51,6 @@ import org.vertx.java.core.spi.cluster.ClusterManager;
 
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IList;
-import com.hazelcast.core.IdGenerator;
 
 /**
  * Default cluster manager implementation.
@@ -314,6 +321,18 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   }
 
   @Override
+  public XyncClusterManager isDeployed(String deploymentID, Handler<AsyncResult<Boolean>> resultHandler) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public XyncClusterManager getDeploymentInfo(String deploymentID, Handler<AsyncResult<DeploymentInfo>> resultHandler) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
   public XyncClusterManager deployModuleAs(final String deploymentID, String moduleName, JsonObject config, int instances, final Handler<AsyncResult<String>> doneHandler) {
     platform.deployModuleAs(deploymentID, moduleName, config, instances, doneHandler);
     return this;
@@ -380,297 +399,33 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
   }
 
   @Override
-  public XyncClusterManager generateId(String name, final Handler<AsyncResult<Long>> doneHandler) {
-    final IdGenerator generator = hazelcast.getIdGenerator(name);
-    vertx.executeBlocking(new Action<Long>() {
-      @Override
-      public Long perform() {
-        return generator.newId();
-      }
-    }, doneHandler);
-    return this;
+  public <K, V> WatchableAsyncMap<K, V> getMap(String name) {
+    return new HazelcastAsyncMap<K, V>(createHazelcastName(name), vertx, hazelcast);
   }
 
   @Override
-  public XyncClusterManager set(final String name, final String key, final Object value, final Handler<AsyncResult<Void>> doneHandler) {
-    final XyncAsyncMap<String, Object> data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(createHazelcastName(name)));
-    data.containsKey(key, new Handler<AsyncResult<Boolean>>() {
-      @Override
-      public void handle(AsyncResult<Boolean> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        } else {
-          final boolean existed = result.result();
-          data.put(key, value, new Handler<AsyncResult<Void>>() {
-            @Override
-            public void handle(AsyncResult<Void> result) {
-              if (result.failed()) {
-                new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-              } else {
-                triggerEvent(name, key, Event.Type.CHANGE, value);
-                if (existed) {
-                  triggerEvent(name, key, Event.Type.UPDATE, value);
-                }
-                else {
-                  triggerEvent(name, key, Event.Type.CREATE, value);
-                }
-                new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-              }
-            }
-          });
-        }
-      }
-    });
-    return this;
+  public <T> AsyncList<T> getList(String name) {
+    return new HazelcastAsyncList<T>(createHazelcastName(name), vertx, hazelcast);
   }
 
   @Override
-  public <T> XyncClusterManager get(String name, String key, final T defaultValue, final Handler<AsyncResult<T>> resultHandler) {
-    final XyncAsyncMap<String, Object> data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(createHazelcastName(name)));
-    data.get(key, new Handler<AsyncResult<Object>>() {
-      @Override
-      @SuppressWarnings("unchecked")
-      public void handle(AsyncResult<Object> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<T>(result.cause()).setHandler(resultHandler);
-        } else if (result.result() == null) {
-          new DefaultFutureResult<T>(defaultValue).setHandler(resultHandler);
-        } else {
-          new DefaultFutureResult<T>((T) result.result()).setHandler(resultHandler);
-        }
-      }
-    });
-    return this;
+  public <T> AsyncSet<T> getSet(String name) {
+    return new HazelcastAsyncSet<T>(createHazelcastName(name), vertx, hazelcast);
   }
 
   @Override
-  public XyncClusterManager delete(final String name, final String key, final Handler<AsyncResult<Void>> doneHandler) {
-    final XyncAsyncMap<String, Object> data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(createHazelcastName(name)));
-    data.get(key, new Handler<AsyncResult<Object>>() {
-      @Override
-      public void handle(AsyncResult<Object> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        } else {
-          final Object value = result.result();
-          data.remove(key, new Handler<AsyncResult<Void>>() {
-            @Override
-            public void handle(AsyncResult<Void> result) {
-              if (result.failed()) {
-                new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-              } else {
-                triggerEvent(name, key, Event.Type.CHANGE, value);
-                triggerEvent(name, key, Event.Type.DELETE, value);
-                new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-              }
-            }
-          });
-        }
-      }
-    });
-    return this;
+  public <T> AsyncQueue<T> getQueue(String name) {
+    return new HazelcastAsyncQueue<T>(createHazelcastName(name), vertx, hazelcast);
   }
 
   @Override
-  public XyncClusterManager exists(String name, String key, final Handler<AsyncResult<Boolean>> resultHandler) {
-    final XyncAsyncMap<String, Object> data = new XyncAsyncMap<String, Object>(vertx, clusterManager.<String, Object>getSyncMap(createHazelcastName(name)));
-    data.containsKey(key, new Handler<AsyncResult<Boolean>>() {
-      @Override
-      public void handle(AsyncResult<Boolean> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Boolean>(result.cause()).setHandler(resultHandler);
-        } else {
-          new DefaultFutureResult<Boolean>(result.result()).setHandler(resultHandler);
-        }
-      }
-    });
-    return this;
+  public AsyncIdGenerator getIdGenerator(String name) {
+    return new HazelcastAsyncIdGenerator(createHazelcastName(name), vertx, hazelcast);
   }
 
   @Override
-  public XyncClusterManager watch(String name, String key, String address, Handler<AsyncResult<Void>> doneHandler) {
-    return watch(name, key, address, null, doneHandler);
-  }
-
-  @Override
-  public XyncClusterManager watch(final String name, final String key, final String address, final Type event, final Handler<AsyncResult<Void>> doneHandler) {
-    final XyncAsyncMap<String, String> watchers = new XyncAsyncMap<String, String>(vertx, clusterManager.<String, String>getSyncMap(String.format("__xync.watchers.%s", name)));
-    watchers.get(key, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(AsyncResult<String> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        } else {
-          String swatchers = result.result();
-          JsonObject jsonWatchers = swatchers != null ? new JsonObject(swatchers) : new JsonObject();
-
-          if (!jsonWatchers.containsField(address)) {
-            jsonWatchers.putArray(address, new JsonArray());
-          }
-
-          // Validate that all provided events are valid.
-          JsonArray jsonWatcher = jsonWatchers.getArray(address);
-
-          // Only add the event if it doesn't already exist.
-          if (!jsonWatcher.contains(event)) {
-            jsonWatcher.add(event.toString());
-            watchers.put(key, jsonWatchers.encode(), new Handler<AsyncResult<Void>>() {
-              @Override
-              public void handle(AsyncResult<Void> result) {
-                if (result.failed()) {
-                  new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-                } else {
-                  new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-                }
-              }
-            });
-          }
-          else {
-            new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-          }
-        }
-      }
-    });
-    return this;
-  }
-
-  @Override
-  public XyncClusterManager unwatch(String name, String key, String address, Handler<AsyncResult<Void>> doneHandler) {
-    return unwatch(name, key, address, null, doneHandler);
-  }
-
-  @Override
-  public XyncClusterManager unwatch(final String name, final String key, final String address, final Type event, final Handler<AsyncResult<Void>> doneHandler) {
-    final XyncAsyncMap<String, String> watchers = new XyncAsyncMap<String, String>(vertx, clusterManager.<String, String>getSyncMap(String.format("__xync.watchers.%s", name)));
-    watchers.get(key, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(AsyncResult<String> result) {
-        if (result.failed()) {
-          new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-        } else {
-          String swatchers = result.result();
-          JsonObject jsonWatchers = swatchers != null ? new JsonObject(swatchers) : new JsonObject();
-
-          // If the watcher doesn't exist then simply return ok.
-          if (!jsonWatchers.containsField(address)) {
-            new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-            return;
-          }
-
-          // Validate that all provided events are valid.
-          JsonArray jsonWatcher = jsonWatchers.getArray(address);
-
-          // Only remove the event if it actually exists.
-          if (jsonWatcher.contains(event.toString())) {
-            Iterator<Object> iter = jsonWatcher.iterator();
-            while (iter.hasNext()) {
-              if (iter.next().equals(event.toString())) {
-                iter.remove();
-              }
-            }
-
-            watchers.put(key, jsonWatchers.encode(), new Handler<AsyncResult<Void>>() {
-              @Override
-              public void handle(AsyncResult<Void> result) {
-                if (result.failed()) {
-                  new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
-                } else {
-                  new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-                }
-              }
-            });
-          }
-          else {
-            new DefaultFutureResult<Void>((Void) null).setHandler(doneHandler);
-          }
-        }
-      }
-    });
-    return this;
-  }
-
-  private void triggerEvent(final String name, final String key, final Event.Type event, final Object value) {
-    final XyncAsyncMap<String, String> watchers = new XyncAsyncMap<String, String>(vertx, clusterManager.<String, String>getSyncMap(String.format("__xync.watchers.%s", name)));
-    watchers.get(key, new Handler<AsyncResult<String>>() {
-      @Override
-      public void handle(AsyncResult<String> result) {
-        if (result.succeeded() && result.result() != null) {
-          JsonObject message = new JsonObject()
-              .putString("event", event.toString())
-              .putString("key", key)
-              .putValue("value", value);
-
-          JsonObject jsonWatchers = new JsonObject(result.result());
-          for (String address : jsonWatchers.getFieldNames()) {
-            JsonArray jsonWatcher = jsonWatchers.getArray(address);
-            if (jsonWatcher.contains(event.toString())) {
-              eventBus.send(address, message);
-            }
-          }
-        }
-      }
-    });
-  }
-
-  @Override
-  public XyncClusterManager add(final String name, final Object value, final Handler<AsyncResult<Void>> doneHandler) {
-    final IList<Object> list = hazelcast.getList(createHazelcastName(name));
-    vertx.executeBlocking(new Action<Void>() {
-      @Override
-      public Void perform() {
-        list.add(value);
-        return null;
-      } 
-    }, doneHandler);
-    return this;
-  }
-
-  @Override
-  public XyncClusterManager remove(String name, final int index, final Handler<AsyncResult<Object>> doneHandler) {
-    final IList<Object> list = hazelcast.getList(createHazelcastName(name));
-    vertx.executeBlocking(new Action<Object>() {
-      @Override
-      public Object perform() {
-        return list.remove(index);
-      }
-    }, doneHandler);
-    return this;
-  }
-
-  @Override
-  public XyncClusterManager remove(String name, final Object value, final Handler<AsyncResult<Boolean>> doneHandler) {
-    final IList<Object> list = hazelcast.getList(createHazelcastName(name));
-    vertx.executeBlocking(new Action<Boolean>() {
-      @Override
-      public Boolean perform() {
-        return list.remove(value);
-      }
-    }, doneHandler);
-    return this;
-  }
-
-  @Override
-  public XyncClusterManager contains(String name, final Object value, final Handler<AsyncResult<Boolean>> doneHandler) {
-    final IList<Object> list = hazelcast.getList(createHazelcastName(name));
-    vertx.executeBlocking(new Action<Boolean>() {
-      @Override
-      public Boolean perform() {
-        return list.contains(value);
-      }
-    }, doneHandler);
-    return this;
-  }
-
-  @Override
-  public XyncClusterManager count(String name, final Handler<AsyncResult<Integer>> doneHandler) {
-    final IList<Object> list = hazelcast.getList(createHazelcastName(name));
-    vertx.executeBlocking(new Action<Integer>() {
-      @Override
-      public Integer perform() {
-        return list.size();
-      }
-    }, doneHandler);
-    return this;
+  public AsyncLock getLock(String name) {
+    return new HazelcastAsyncLock(createHazelcastName(name), vertx, hazelcast);
   }
 
   private static String createHazelcastName(String name) {

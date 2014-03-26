@@ -89,6 +89,13 @@ public interface DeploymentInfo {
   String id();
 
   /**
+   * Returns the node on which the deployment is deployed.
+   *
+   * @return The node on which the deployment is deployed.
+   */
+  String node();
+
+  /**
    * Returns the target deployment group.
    * 
    * @return The target deployment group.

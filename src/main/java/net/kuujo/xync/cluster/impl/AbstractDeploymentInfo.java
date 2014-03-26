@@ -30,6 +30,7 @@ import net.kuujo.xync.cluster.VerticleDeploymentInfo;
  */
 public abstract class AbstractDeploymentInfo implements DeploymentInfo {
   protected String id;
+  protected String node;
   protected String group;
   protected Map<String, Object> config;
   protected int instances = 1;
@@ -37,6 +38,11 @@ public abstract class AbstractDeploymentInfo implements DeploymentInfo {
   @Override
   public String id() {
     return id;
+  }
+
+  @Override
+  public String node() {
+    return node;
   }
 
   @Override

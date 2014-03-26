@@ -15,15 +15,17 @@
  */
 package net.kuujo.xync.cluster.impl;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 import net.kuujo.xync.cluster.DeploymentInfo;
-import net.kuujo.xync.cluster.Event;
 import net.kuujo.xync.cluster.ModuleDeploymentInfo;
 import net.kuujo.xync.cluster.VerticleDeploymentInfo;
 import net.kuujo.xync.cluster.WorkerVerticleDeploymentInfo;
 import net.kuujo.xync.cluster.XyncClusterManager;
 import net.kuujo.xync.cluster.XyncClusterService;
+import net.kuujo.xync.cluster.data.MapEvent;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -64,37 +66,167 @@ public class DefaultXyncClusterService implements XyncClusterService {
           case "id":
             doGenerateId(message);
             break;
-          case "set":
-            doSet(message);
-            break;
-          case "get":
-            doGet(message);
-            break;
-          case "delete":
-            doDelete(message);
-            break;
-          case "exists":
-            doExists(message);
-            break;
-          case "watch":
-            doWatch(message);
-            break;
-          case "unwatch":
-            doUnwatch(message);
-            break;
-          case "add":
-            doAdd(message);
-            break;
-          case "remove":
-            doRemove(message);
-            break;
-          case "contains":
-            doContains(message);
-            break;
-          case "count":
-            doCount(message);
-            break;
           default:
+            String type = message.body().getString("type");
+            if (type == null) {
+              message.reply(new JsonObject().putString("status", "error").putString("message", "No data type specified."));
+              return;
+            }
+
+            switch (type) {
+              case "map":
+                switch (action) {
+                  case "put":
+                    doMapPut(message);
+                    break;
+                  case "get":
+                    doMapGet(message);
+                    break;
+                  case "remove":
+                    doMapRemove(message);
+                    break;
+                  case "contains":
+                    doMapContainsKey(message);
+                    break;
+                  case "keys":
+                    doMapKeys(message);
+                    break;
+                  case "values":
+                    doMapValues(message);
+                    break;
+                  case "empty":
+                    doMapIsEmpty(message);
+                    break;
+                  case "clear":
+                    doMapClear(message);
+                    break;
+                  case "size":
+                    doMapSize(message);
+                    break;
+                  case "watch":
+                    doMapWatch(message);
+                    break;
+                  case "unwatch":
+                    doMapUnwatch(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+                break;
+              case "list":
+                switch (action) {
+                  case "add":
+                    doListAdd(message);
+                    break;
+                  case "remove":
+                    doListRemove(message);
+                    break;
+                  case "contains":
+                    doListContains(message);
+                    break;
+                  case "size":
+                    doListSize(message);
+                    break;
+                  case "empty":
+                    doListIsEmpty(message);
+                    break;
+                  case "clear":
+                    doListClear(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+                break;
+              case "set":
+                switch (action) {
+                  case "add":
+                    doSetAdd(message);
+                    break;
+                  case "remove":
+                    doSetRemove(message);
+                    break;
+                  case "contains":
+                    doSetContains(message);
+                    break;
+                  case "size":
+                    doSetSize(message);
+                    break;
+                  case "empty":
+                    doSetIsEmpty(message);
+                    break;
+                  case "clear":
+                    doSetClear(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+                break;
+              case "queue":
+                switch (action) {
+                  case "add":
+                    doQueueAdd(message);
+                    break;
+                  case "remove":
+                    doQueueRemove(message);
+                    break;
+                  case "contains":
+                    doQueueContains(message);
+                    break;
+                  case "empty":
+                    doQueueIsEmpty(message);
+                    break;
+                  case "size":
+                    doQueueSize(message);
+                    break;
+                  case "clear":
+                    doQueueClear(message);
+                    break;
+                  case "offer":
+                    doQueueOffer(message);
+                    break;
+                  case "element":
+                    doQueueElement(message);
+                    break;
+                  case "poll":
+                    doQueuePoll(message);
+                    break;
+                  case "peek":
+                    doQueuePeek(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+                break;
+              case "lock":
+                switch (action) {
+                  case "lock":
+                    doLockLock(message);
+                    break;
+                  case "try":
+                    doLockTry(message);
+                    break;
+                  case "unlock":
+                    doLockUnlock(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+              case "id":
+                switch (action) {
+                  case "next":
+                    doGenerateId(message);
+                    break;
+                  default:
+                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                    break;
+                }
+                break;
+            }
             message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
             break;
         }
@@ -264,7 +396,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.generateId(name, new Handler<AsyncResult<Long>>() {
+    clusterManager.getIdGenerator(name).nextId(new Handler<AsyncResult<Long>>() {
       @Override
       public void handle(AsyncResult<Long> result) {
         if (result.failed()) {
@@ -277,9 +409,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
   }
 
   /**
-   * Handles a cluster set command.
+   * Handles a cluster map put command.
    */
-  private void doSet(final Message<JsonObject> message) {
+  private void doMapPut(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -298,37 +430,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.set(name, key, value, new Handler<AsyncResult<Void>>() {
-      @Override
-      public void handle(AsyncResult<Void> result) {
-        if (result.failed()) {
-          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        } else {
-          message.reply(new JsonObject().putString("status", "ok"));
-        }
-      }
-    });
-  }
-
-  /**
-   * Handles a cluster get command.
-   */
-  private void doGet(final Message<JsonObject> message) {
-    final String name = message.body().getString("name");
-    if (name == null) {
-      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
-      return;
-    }
-
-    final String key = message.body().getString("key");
-    if (key == null) {
-      message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
-      return;
-    }
-
-    final Object defaultValue = message.body().getString("default");
-
-    clusterManager.get(name, key, defaultValue, new Handler<AsyncResult<Object>>() {
+    clusterManager.getMap(name).put(key, value, new Handler<AsyncResult<Object>>() {
       @Override
       public void handle(AsyncResult<Object> result) {
         if (result.failed()) {
@@ -341,9 +443,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
   }
 
   /**
-   * Handles a cluster delete command.
+   * Handles a cluster map get command.
    */
-  private void doDelete(final Message<JsonObject> message) {
+  private void doMapGet(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -356,13 +458,41 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.delete(name, key, new Handler<AsyncResult<Void>>() {
+    clusterManager.getMap(name).get(key, new Handler<AsyncResult<Object>>() {
       @Override
-      public void handle(AsyncResult<Void> result) {
+      public void handle(AsyncResult<Object> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
         } else {
-          message.reply(new JsonObject().putString("status", "ok"));
+          message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a cluster map remove command.
+   */
+  private void doMapRemove(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final String key = message.body().getString("key");
+    if (key == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).remove(key, new Handler<AsyncResult<Object>>() {
+      @Override
+      public void handle(AsyncResult<Object> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
         }
       }
     });
@@ -371,7 +501,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Handles a cluster exists command.
    */
-  private void doExists(final Message<JsonObject> message) {
+  private void doMapContainsKey(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -384,7 +514,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.exists(name, key, new Handler<AsyncResult<Boolean>>() {
+    clusterManager.getMap(name).containsKey(key, new Handler<AsyncResult<Boolean>>() {
       @Override
       public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
@@ -397,9 +527,119 @@ public class DefaultXyncClusterService implements XyncClusterService {
   }
 
   /**
+   * Handles map keys command.
+   */
+  private void doMapKeys(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).keySet(new Handler<AsyncResult<Set<Object>>>() {
+      @Override
+      public void handle(AsyncResult<Set<Object>> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putArray("result", new JsonArray(result.result().toArray())));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles map values command.
+   */
+  private void doMapValues(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).values(new Handler<AsyncResult<Collection<Object>>>() {
+      @Override
+      public void handle(AsyncResult<Collection<Object>> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putArray("result", new JsonArray(result.result().toArray())));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles cluster map is empty command.
+   */
+  private void doMapIsEmpty(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).isEmpty(new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Counts the number of items in a map.
+   */
+  private void doMapSize(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).size(new Handler<AsyncResult<Integer>>() {
+      @Override
+      public void handle(AsyncResult<Integer> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putNumber("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Clears all items in a map.
+   */
+  private void doMapClear(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getMap(name).clear(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
+        }
+      }
+    });
+  }
+
+  /**
    * Handles a cluster watch command.
    */
-  private void doWatch(final Message<JsonObject> message) {
+  private void doMapWatch(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -419,17 +659,17 @@ public class DefaultXyncClusterService implements XyncClusterService {
     }
 
     String sevent = message.body().getString("event");
-    Event.Type event = null;
+    MapEvent.Type event = null;
     if (sevent != null) {
       try {
-        event = Event.Type.parse(sevent);
+        event = MapEvent.Type.parse(sevent);
       } catch (IllegalArgumentException e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
         return;
       }
     }
 
-    clusterManager.watch(name, key, address, event, new Handler<AsyncResult<Void>>() {
+    clusterManager.getMap(name).watch(key, event, address, new Handler<AsyncResult<Void>>() {
       @Override
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
@@ -444,7 +684,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Handles a cluster unwatch command.
    */
-  private void doUnwatch(final Message<JsonObject> message) {
+  private void doMapUnwatch(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -464,17 +704,17 @@ public class DefaultXyncClusterService implements XyncClusterService {
     }
 
     String sevent = message.body().getString("event");
-    Event.Type event = null;
+    MapEvent.Type event = null;
     if (sevent != null) {
       try {
-        event = Event.Type.parse(sevent);
+        event = MapEvent.Type.parse(sevent);
       } catch (IllegalArgumentException e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
         return;
       }
     }
 
-    clusterManager.unwatch(name, key, address, event, new Handler<AsyncResult<Void>>() {
+    clusterManager.getMap(name).unwatch(key, event, address, new Handler<AsyncResult<Void>>() {
       @Override
       public void handle(AsyncResult<Void> result) {
         if (result.failed()) {
@@ -489,7 +729,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Handles a list addition.
    */
-  private void doAdd(final Message<JsonObject> message) {
+  private void doListAdd(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -502,13 +742,13 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.add(name, value, new Handler<AsyncResult<Void>>() {
+    clusterManager.getList(name).add(value, new Handler<AsyncResult<Boolean>>() {
       @Override
-      public void handle(AsyncResult<Void> result) {
+      public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
         } else {
-          message.reply(new JsonObject().putString("status", "ok"));
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
         }
       }
     });
@@ -517,7 +757,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Handles a list removal.
    */
-  private void doRemove(final Message<JsonObject> message) {
+  private void doListRemove(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -526,7 +766,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
 
     if (message.body().containsField("index")) {
       final int index = message.body().getInteger("index");
-      clusterManager.remove(name, index, new Handler<AsyncResult<Object>>() {
+      clusterManager.getList(name).remove(index, new Handler<AsyncResult<Object>>() {
         @Override
         public void handle(AsyncResult<Object> result) {
           if (result.failed()) {
@@ -543,7 +783,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
         message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
       }
       else {
-        clusterManager.remove(name, value, new Handler<AsyncResult<Boolean>>() {
+        clusterManager.getList(name).remove(value, new Handler<AsyncResult<Boolean>>() {
           @Override
           public void handle(AsyncResult<Boolean> result) {
             if (result.failed()) {
@@ -560,7 +800,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Checks whether a list contains a value.
    */
-  private void doContains(final Message<JsonObject> message) {
+  private void doListContains(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
@@ -573,7 +813,29 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    clusterManager.contains(name, value, new Handler<AsyncResult<Boolean>>() {
+    clusterManager.getList(name).contains(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles cluster list is empty command.
+   */
+  private void doListIsEmpty(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getList(name).isEmpty(new Handler<AsyncResult<Boolean>>() {
       @Override
       public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
@@ -588,20 +850,504 @@ public class DefaultXyncClusterService implements XyncClusterService {
   /**
    * Counts the number of items in a list.
    */
-  private void doCount(final Message<JsonObject> message) {
+  private void doListSize(final Message<JsonObject> message) {
     final String name = message.body().getString("name");
     if (name == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
       return;
     }
 
-    clusterManager.count(name, new Handler<AsyncResult<Integer>>() {
+    clusterManager.getList(name).size(new Handler<AsyncResult<Integer>>() {
       @Override
       public void handle(AsyncResult<Integer> result) {
         if (result.failed()) {
           message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
         } else {
           message.reply(new JsonObject().putString("status", "ok").putNumber("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Clears all items in a list.
+   */
+  private void doListClear(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getList(name).clear(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a set addition.
+   */
+  private void doSetAdd(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+      return;
+    }
+
+    clusterManager.getSet(name).add(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a set removal.
+   */
+  private void doSetRemove(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+    }
+    else {
+      clusterManager.getSet(name).remove(value, new Handler<AsyncResult<Boolean>>() {
+        @Override
+        public void handle(AsyncResult<Boolean> result) {
+          if (result.failed()) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+          } else {
+            message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Checks whether a set contains a value.
+   */
+  private void doSetContains(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+      return;
+    }
+
+    clusterManager.getSet(name).contains(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles cluster set is empty command.
+   */
+  private void doSetIsEmpty(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getSet(name).isEmpty(new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Counts the number of items in a set.
+   */
+  private void doSetSize(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getSet(name).size(new Handler<AsyncResult<Integer>>() {
+      @Override
+      public void handle(AsyncResult<Integer> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putNumber("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Clears all items in a set.
+   */
+  private void doSetClear(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getSet(name).clear(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue addition.
+   */
+  private void doQueueAdd(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).add(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue removal.
+   */
+  private void doQueueRemove(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+    }
+    else {
+      clusterManager.getQueue(name).remove(value, new Handler<AsyncResult<Boolean>>() {
+        @Override
+        public void handle(AsyncResult<Boolean> result) {
+          if (result.failed()) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+          } else {
+            message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Checks whether a queue contains a value.
+   */
+  private void doQueueContains(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).contains(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles cluster queue is empty command.
+   */
+  private void doQueueIsEmpty(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).isEmpty(new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Counts the number of items in a queue.
+   */
+  private void doQueueSize(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).size(new Handler<AsyncResult<Integer>>() {
+      @Override
+      public void handle(AsyncResult<Integer> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putNumber("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Clears all items in a queue.
+   */
+  private void doQueueClear(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).clear(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue offer command.
+   */
+  private void doQueueOffer(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Object value = message.body().getValue("value");
+    if (value == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).offer(value, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue element command.
+   */
+  private void doQueueElement(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).element(new Handler<AsyncResult<Object>>() {
+      @Override
+      public void handle(AsyncResult<Object> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue poll command.
+   */
+  private void doQueuePoll(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).poll(new Handler<AsyncResult<Object>>() {
+      @Override
+      public void handle(AsyncResult<Object> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles a queue peek command.
+   */
+  private void doQueuePeek(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getQueue(name).peek(new Handler<AsyncResult<Object>>() {
+      @Override
+      public void handle(AsyncResult<Object> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putValue("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Locks a lock.
+   */
+  private void doLockLock(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getLock(name).lock(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
+        }
+      }
+    });
+  }
+
+  /**
+   * Tries to lock a lock.
+   */
+  private void doLockTry(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final long timeout = message.body().getLong("timeout", 30000);
+
+    clusterManager.getLock(name).tryLock(timeout, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
+   * Unlocks a lock.
+   */
+  private void doLockUnlock(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    clusterManager.getLock(name).unlock(new Handler<AsyncResult<Void>>() {
+      @Override
+      public void handle(AsyncResult<Void> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok"));
         }
       }
     });

@@ -18,6 +18,12 @@ package net.kuujo.xync.cluster;
 import java.net.URL;
 import java.util.Set;
 
+import net.kuujo.xync.cluster.data.AsyncIdGenerator;
+import net.kuujo.xync.cluster.data.AsyncList;
+import net.kuujo.xync.cluster.data.AsyncLock;
+import net.kuujo.xync.cluster.data.AsyncQueue;
+import net.kuujo.xync.cluster.data.AsyncSet;
+import net.kuujo.xync.cluster.data.WatchableAsyncMap;
 import net.kuujo.xync.platform.XyncPlatformManager;
 
 import org.vertx.java.core.AsyncResult;
@@ -82,6 +88,24 @@ public interface XyncClusterManager {
    * @param doneHandler An asynchronous handler to be called once stopped.
    */
   void stop(Handler<AsyncResult<Void>> doneHandler);
+
+  /**
+   * Checks if a deployment is deployed.
+   *
+   * @param deploymentID The deployment ID to check.
+   * @param resultHandler An asynchronous handler to be called with the result.
+   * @return The cluster manager.
+   */
+  XyncClusterManager isDeployed(String deploymentID, Handler<AsyncResult<Boolean>> resultHandler);
+
+  /**
+   * Returns deployment info.
+   *
+   * @param deploymentID The deployment ID.
+   * @param resultHandler An asynchronous handler to be called with the deployment info.
+   * @return The cluster manager.
+   */
+  XyncClusterManager getDeploymentInfo(String deploymentID, Handler<AsyncResult<DeploymentInfo>> resultHandler);
 
   /**
    * Deploys a module to the cluster.
@@ -177,157 +201,51 @@ public interface XyncClusterManager {
   XyncClusterManager undeployWorkerVerticleAs(String deploymentID, Handler<AsyncResult<Void>> doneHandler);
 
   /**
-   * Generates a unique ID.
+   * Returns an asynchronous cluster-wide replicated map.
    *
-   * @param name The name of the generator to use.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
+   * @param name The map name.
+   * @return An asynchronous cluster-wide replicated map.
    */
-  XyncClusterManager generateId(String name, Handler<AsyncResult<Long>> doneHandler);
+  <K, V> WatchableAsyncMap<K, V> getMap(String name);
 
   /**
-   * Sets a key in the cluster.
+   * Returns an asynchronous cluster-wide replicated list.
    *
-   * @param name The name of the map on which to operate.
-   * @param key The key to set.
-   * @param value The value to set.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
+   * @param name The list name.
+   * @return An asynchronous cluster-wide replicated list.
    */
-  XyncClusterManager set(String name, String key, Object value, Handler<AsyncResult<Void>> doneHandler);
+  <T> AsyncList<T> getList(String name);
 
   /**
-   * Gets a key in the cluster.
+   * Returns an asynchronous cluster-wide replicated set.
    *
-   * @param name The name of the map on which to operate.
-   * @param key The key to retrieve.
-   * @param def The default value if the key doesn't exist.
-   * @param resultHandler An asynchronous handler to be called with the result.
-   * @return The cluster manager.
+   * @param name The set name.
+   * @return An asynchronous cluster-wide replicated set.
    */
-  <T> XyncClusterManager get(String name, String key, T def, Handler<AsyncResult<T>> resultHandler);
+  <T> AsyncSet<T> getSet(String name);
 
   /**
-   * Deletes a key from the cluster.
+   * Returns an asynchronous cluster-wide replicated queue.
    *
-   * @param name The name of the map on which to operate.
-   * @param key The key to delete.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
+   * @param name The queue name.
+   * @return An asynchronous cluster-wide replicated queue.
    */
-  XyncClusterManager delete(String name, String key, Handler<AsyncResult<Void>> doneHandler);
+  <T> AsyncQueue<T> getQueue(String name);
 
   /**
-   * Checks whether a key exists in the cluster.
+   * Returns an asynchronous cluster-wide unique ID generator.
    *
-   * @param name The name of the map on which to operate.
-   * @param key The key to check.
-   * @param resultHandler An asynchronous handler to be called with the result.
-   * @return The cluster manager.
+   * @param name The ID generator name.
+   * @return An asynchronous cluster-wide ID generator.
    */
-  XyncClusterManager exists(String name, String key, Handler<AsyncResult<Boolean>> resultHandler);
+  AsyncIdGenerator getIdGenerator(String name);
 
   /**
-   * Watches a key in the cluster for all events.
+   * Returns an asynchronous cluster-wide lock.
    *
-   * @param name The name of the map on which to operate.
-   * @param key The key to watch.
-   * @param address The address at which to subscribe.
-   * @param handler A handler to be called when an event occurs.
-   * @param doneHandler An asynchronous handler to be called once the watcher is registered
-   *        in the cluster.
-   * @return The cluster manager.
+   * @param name The lock name.
+   * @return An asynchronous cluster-wide lock.
    */
-  XyncClusterManager watch(String name, String key, String address, Handler<AsyncResult<Void>> doneHandler);
-
-  /**
-   * Watches a key in the cluster for a specific event.
-   *
-   * @param name The name of the map on which to operate.
-   * @param key The key to watch.
-   * @param address The address at which to subscribe.
-   * @param event The event to watch.
-   * @param handler A handler to be called when an event occurs.
-   * @param doneHandler An asynchronous handler to be called once the watcher is registered
-   *        in the cluster.
-   * @return The cluster manager.
-   */
-  XyncClusterManager watch(String name, String key, String address, Event.Type event, Handler<AsyncResult<Void>> doneHandler);
-
-  /**
-   * Unwatches a key in the cluster for all events.
-   *
-   * @param name The name of the map on which to operate.
-   * @param key The key to unwatch.
-   * @param address The address at which to subscribe.
-   * @param handler The handler to unwatch.
-   * @param doneHandler An asynchronous handler to be called once the watcher is unregistered
-   *        from the cluster.
-   * @return The cluster manager.
-   */
-  XyncClusterManager unwatch(String name, String key, String address, Handler<AsyncResult<Void>> doneHandler);
-
-  /**
-   * Unwatches a key in the cluster for a specific event.
-   *
-   * @param name The name of the map on which to operate.
-   * @param key The key to unwatch.
-   * @param event The event to unwatch.
-   * @param address The address at which to subscribe.
-   * @param handler The handler to unwatch.
-   * @param doneHandler An asynchronous handler to be called once the watcher is unregistered
-   *        from the cluster.
-   * @return The cluster manager.
-   */
-  XyncClusterManager unwatch(String name, String key, String address, Event.Type event, Handler<AsyncResult<Void>> doneHandler);
-
-  /**
-   * Adds an item to a list.
-   *
-   * @param name The name of the list on which to operate.
-   * @param value The value to add to the list.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
-   */
-  XyncClusterManager add(String name, Object value, Handler<AsyncResult<Void>> doneHandler);
-
-  /**
-   * Removes an item from a list.
-   *
-   * @param name The name of the list on which to operate.
-   * @param index The index of the item to remove from the list.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
-   */
-  XyncClusterManager remove(String name, int index, Handler<AsyncResult<Object>> doneHandler);
-
-  /**
-   * Removes an item from a list.
-   *
-   * @param name The name of the list on which to operate.
-   * @param value The value to remove from the list.
-   * @param doneHandler An asynchronous handler to be called once complete.
-   * @return The cluster manager.
-   */
-  XyncClusterManager remove(String name, Object value, Handler<AsyncResult<Boolean>> doneHandler);
-
-  /**
-   * Checks whether a list contains a value.
-   *
-   * @param name The name of the list on which to operate.
-   * @param value The value for which to check the list.
-   * @param doneHandler An asynchronous handler to be called with the result.
-   * @return The cluster manager.
-   */
-  XyncClusterManager contains(String name, Object value, Handler<AsyncResult<Boolean>> doneHandler);
-
-  /**
-   * Gets the count of items in a list.
-   *
-   * @param name The name of the list on which to operate.
-   * @param doneHandler An asynchronous handler to be called with the result.
-   * @return The cluster manager.
-   */
-  XyncClusterManager count(String name, Handler<AsyncResult<Integer>> doneHandler);
+  AsyncLock getLock(String name);
 
 }

@@ -110,6 +110,17 @@ public class DefaultWorkerVerticleDeploymentInfo extends DefaultVerticleDeployme
     }
 
     /**
+     * Sets the deployment node.
+     *
+     * @param node The deployment node.
+     * @return The builder instance.
+     */
+    public Builder setNode(String node) {
+      info.node = node;
+      return this;
+    }
+
+    /**
      * Sets the deployment group.
      *
      * @param group The deployment group.
