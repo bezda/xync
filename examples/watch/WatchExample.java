@@ -16,7 +16,7 @@
 
 import java.util.UUID;
 
-import net.kuujo.xync.cluster.Event;
+import net.kuujo.xync.cluster.data.MapEvent;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -54,7 +54,7 @@ public class WatchExample extends Verticle {
           JsonObject message = new JsonObject()
               .putString("action", "watch")
               .putString("key", "test")
-              .putString("event", Event.Type.CHANGE.toString());
+              .putString("event", MapEvent.Type.CHANGE.toString());
           vertx.eventBus().sendWithTimeout("cluster", message, 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
             public void handle(AsyncResult<Message<JsonObject>> result) {
