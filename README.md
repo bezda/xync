@@ -19,12 +19,13 @@ specifically for clustering.
    * [Deploying modules](#deploying-modules)
    * [Undeploying modules](#undeploying-modules)
    * [Deploying modules to specific HA groups](#deploying-modules-to-specific-ha-groups)
-1. [Working with remote shared data](#working-with-remote-shared-data)
-   * [Setting the value of a key](#setting-the-value-of-a-key)
-   * [Reading the value of a key](#reading-the-value-of-a-key)
-   * [Deleting a key](#deleting-a-key)
-   * [Checking if a key exists](#checking-if-a-key-exists)
-   * [Monitoring keys for changes](#monitoring-keys-for-changes)
+1. [Working with cluster-wide shared data](#working-with-cluster-wide-shared-data)
+   * [Shared maps](#shared-maps)
+   * [Shared lists](#shared-lists)
+   * [Shared sets](#shared-sets)
+   * [Shared queues](#shared-queues)
+   * [Distributed locks](#distributed-locks)
+   * [Unique ID generators](#unique-id-generators)
 
 ### Installation
 The easiest method of installation is to simply download the
@@ -150,129 +151,377 @@ Essentially, Xync's data support amounts to a simple key-value store,
 but it also provides data-driven events, allowing users to watch
 keys for changes over the Vert.x event bus.
 
-### Setting the value of a key
-To set a key in the cluster, use the `set` action, again sending
-the message to the Xync cluster.
+### Shared maps
+The shared map is a cluster-wide map that is accessible over the Vert.x event bus.
+The map is backed by a Hazelcast map and has the following operations:
 
-```java
-JsonObject message = new JsonObject()
-  .putString("action", "set")
-  .putString("key", "test")
-  .putString("value", "Hello world!");
-
-vertx.eventBus().send("cluster", message, new Handler<Message<JsonObject>>() {
-  public void handle(Message<JsonObject> message) {
-    if (message.body().getString("status").equals("ok")) {
-      // The key was successfully set.
-    }
-  }
-});
+#### put
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "put",
+  "key": "bar",
+  "value": "baz"
+}
 ```
 
-### Reading the value of a key
-To read a key from the cluster, use the `get` action. This action also
-supports an additional `default` value which will be returned if the
-key does not exist.
-
-```java
-JsonObject message = new JsonObject()
-  .putString("action", "get")
-  .putString("key", "test")
-  .putString("default", "Hello world!");
-
-vertx.eventBus().send("cluster", message, new Handler<Message<JsonObject>>() {
-  public void handle(Message<JsonObject> message) {
-    if (message.body().getString("status").equals("ok")) {
-      String result = message.body().getString("result"); // Hello world!
-    }
-  }
-});
+#### get
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "get",
+  "key": "bar",
+}
 ```
 
-### Deleting a key
-To delete a key from the cluster, use the `delete` action.
-
-```java
-JsonObject message = new JsonObject()
-  .putString("action", "delete")
-  .putString("key", "test");
-
-vertx.eventBus().send("cluster", message, new Handler<Message<JsonObject>>() {
-  public void handle(Message<JsonObject> message) {
-    if (message.body().getString("status").equals("ok")) {
-      // The delete was successfully set.
-    }
-  }
-});
+#### remove
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "remove",
+  "key": "bar"
+}
 ```
 
-Note that the delete will succeed even if the key was not set.
-
-### Checking if a key exists
-To check if a key exists, use the `exists` action.
-
-```java
-JsonObject message = new JsonObject()
-  .putString("action", "exists")
-  .putString("key", "test");
-
-vertx.eventBus().send("cluster", message, new Handler<Message<JsonObject>>() {
-  public void handle(Message<JsonObject> message) {
-    if (message.body().getString("status").equals("ok")) {
-      boolean exists = message.body().getBoolean("result");
-    }
-  }
-});
+#### contains
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "contains",
+  "value": "baz"
+}
 ```
 
-### Monitoring keys for changes
-Xync supports monitoring keys in the clustered data store for changes.
-Xync provides several events for key changes:
-
-* `create` - when a key is created
-* `change` - when a key is created or updated
-* `update` - when a key is updated
-* `delete` - when a key is deleted
-
-Users can be notified of changes by registering an event bus address
-with the cluster. When an event occurs for the indicated key, the
-Xync cluster will send a message to the given address containing the
-key, event, and value.
-
-```java
-// Register a handler at which to listen for key events.
-vertx.eventBus().registerHandler("watch-test", new Handler<Message<JsonObject>>() {
-  public void handle(Message<JsonObject> message) {
-    String event = message.body().getString("event");
-  }
-}, new Handler<AsyncResult<Void>>() {
-  public void handle(AsyncResult<Void>> result) {
-    if (result.succeeded()) {
-      // Register the new handler with the cluster.
-      JsonObject message = new JsonObject()
-        .putString("action", "watch")
-        .putString("key", "test")
-        .putString("address", "watch-test")
-        .putString("event", "change");
-
-      vertx.eventBus().send("cluster", message);
-    }
-  }
-});
+#### keys
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "keys"
+}
 ```
 
-To stop monitoring a key for changes, simply pass the same message
-but with the `unwatch` action.
-
-```java
-JsonObject message = new JsonObject()
-  .putString("action", "unwatch")
-  .putString("key", "test")
-  .putString("address", "watch-test")
-  .putString("event", "change");
-
-vertx.eventBus().send("cluster", message);
+#### values
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "values"
+}
 ```
 
-Note that if no `event` is indicated in the watch message, the address
-will be subscribed to *all* events for the given key.
+#### empty
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "empty"
+}
+```
+
+#### clear
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "clear"
+}
+```
+
+#### size
+```
+{
+  "type": "map",
+  "name": "foo",
+  "action": "size";
+}
+```
+
+### Shared lists
+The shared list is a cluster-wide list that is accessible over the Vert.x event bus.
+The list is backed by a Hazelcast list and has the following operations:
+
+#### add
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "add",
+  "value": "bar"
+}
+```
+
+#### remove
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "remove",
+  "value": "bar"
+}
+```
+
+or
+
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "remove",
+  "index": 2
+}
+```
+
+#### contains
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "contains",
+  "value": "bar"
+}
+```
+
+#### size
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "size"
+}
+```
+
+#### empty
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "empty"
+}
+```
+
+#### clear
+```
+{
+  "type": "list",
+  "name": "foo",
+  "action": "clear"
+}
+```
+
+### Shared sets
+The shared set is a cluster-wide set that is accessible over the Vert.x event bus.
+The set is backed by a Hazelcast set and has the following operations:
+
+#### add
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "add",
+  "value": "bar"
+}
+```
+
+#### remove
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "remove",
+  "value": "bar"
+}
+```
+
+#### contains
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "contains",
+  "value": "bar"
+}
+```
+
+#### size
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "size"
+}
+```
+
+#### empty
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "empty"
+}
+```
+
+#### clear
+```
+{
+  "type": "set",
+  "name": "foo",
+  "action": "clear"
+}
+```
+
+### Shared queues
+The shared queue is a cluster-wide queue that is accessible over the Vert.x event bus.
+The queue is backed by a Hazelcast queue and has the following operations:
+
+#### add
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "add",
+  "value": "bar"
+}
+```
+
+#### remove
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "remove",
+  "value": "bar"
+}
+```
+
+or without a value, remove the element at the head of the queue
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "remove"
+}
+```
+
+#### contains
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "contains",
+  "value": "bar"
+}
+```
+
+#### size
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "size"
+}
+```
+
+#### empty
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "empty"
+}
+```
+
+#### clear
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "clear"
+}
+```
+
+#### offer
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "offer",
+  "value": "bar"
+}
+```
+
+#### element
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "element"
+}
+```
+
+#### poll
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "poll"
+}
+```
+
+#### peek
+```
+{
+  "type": "queue",
+  "name": "foo",
+  "action": "peek"
+}
+```
+
+### Distributed locks
+The distributed lock is a cluster-wide lock that is accessible over the Vert.x event bus.
+The lock is backed by a Hazelcast lock and has the following operations:
+
+#### lock
+```
+{
+  "type": "lock",
+  "name": "foo",
+  "action": "lock"
+}
+```
+
+#### try
+```
+{
+  "type": "lock",
+  "name": "foo",
+  "action": "try",
+  "timeout": 30000
+}
+```
+
+#### unlock
+```
+{
+  "type": "lock",
+  "name": "foo",
+  "action": "unlock"
+}
+```
+
+### Unique ID generators
+The unique ID generator is a cluster-wide ID generator that is accessible over the Vert.x event bus.
+The generator is backed by a Hazelcast generator and has the following operation:
+
+#### next
+```
+{
+  "type": "id",
+  "name": "foo",
+  "action": "next"
+}
+```
