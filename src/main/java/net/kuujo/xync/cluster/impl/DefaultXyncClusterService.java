@@ -57,6 +57,9 @@ public class DefaultXyncClusterService implements XyncClusterService {
       String action = message.body().getString("action");
       if (action != null) {
         switch (action) {
+          case "check":
+            doCheck(message);
+            break;
           case "deploy":
             doDeploy(message);
             break;
@@ -253,6 +256,28 @@ public class DefaultXyncClusterService implements XyncClusterService {
   }
 
   /**
+   * Checks whether a deployment is deployed.
+   */
+  private void doCheck(final Message<JsonObject> message) {
+    String deploymentID = message.body().getString("id");
+    if (deploymentID == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment ID."));
+      return;
+    }
+
+    clusterManager.isDeployed(deploymentID, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
+        }
+      }
+    });
+  }
+
+  /**
    * Handles deployment of a module/verticle.
    */
   private void doDeploy(final Message<JsonObject> message) {
@@ -418,13 +443,13 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    final String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;
     }
 
-    final Object value = message.body().getString("value");
+    final Object value = message.body().getValue("value");
     if (value == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
       return;
@@ -452,7 +477,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    final String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;
@@ -480,7 +505,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    final String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;
@@ -508,7 +533,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    final String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;
@@ -646,7 +671,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;
@@ -691,7 +716,7 @@ public class DefaultXyncClusterService implements XyncClusterService {
       return;
     }
 
-    String key = message.body().getString("key");
+    final Object key = message.body().getValue("key");
     if (key == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No key specified."));
       return;

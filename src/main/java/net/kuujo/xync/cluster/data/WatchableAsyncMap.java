@@ -36,7 +36,7 @@ public interface WatchableAsyncMap<K, V> extends AsyncMap<K, V> {
    * @param address The address to which to publish events.
    * @param doneHandler An asynchronous handler to be called once the key is being watched.
    */
-  void watch(String key, MapEvent.Type event, String address, Handler<AsyncResult<Void>> doneHandler);
+  void watch(K key, MapEvent.Type event, String address, Handler<AsyncResult<Void>> doneHandler);
 
   /**
    * Stops watching a key for changes.
@@ -46,6 +46,6 @@ public interface WatchableAsyncMap<K, V> extends AsyncMap<K, V> {
    * @param address The address to which to publish events.
    * @param doneHandler An asynchronous handler to be called once the key is no longer being watched.
    */
-  void unwatch(String key, MapEvent.Type event, String address, Handler<AsyncResult<Void>> doneHandler);
+  void unwatch(K key, MapEvent.Type event, String address, Handler<AsyncResult<Void>> doneHandler);
 
 }

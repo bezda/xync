@@ -46,7 +46,7 @@ public class HazelcastAsyncMap<K, V> implements WatchableAsyncMap<K, V> {
   private final String name;
   private final VertxInternal vertx;
   private final IMap<K, V> map;
-  private final IMap<String, String> watchers;
+  private final IMap<K, String> watchers;
 
   public HazelcastAsyncMap(String name, VertxInternal vertx, HazelcastInstance hazelcast) {
     this.name = name;
@@ -160,7 +160,7 @@ public class HazelcastAsyncMap<K, V> implements WatchableAsyncMap<K, V> {
   }
 
   @Override
-  public void watch(final String key, final Type event, final String address, final Handler<AsyncResult<Void>> doneHandler) {
+  public void watch(final K key, final Type event, final String address, final Handler<AsyncResult<Void>> doneHandler) {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {
@@ -211,7 +211,7 @@ public class HazelcastAsyncMap<K, V> implements WatchableAsyncMap<K, V> {
   }
 
   @Override
-  public void unwatch(final String key, final Type event, final String address, final Handler<AsyncResult<Void>> doneHandler) {
+  public void unwatch(final K key, final Type event, final String address, final Handler<AsyncResult<Void>> doneHandler) {
     vertx.executeBlocking(new Action<String>() {
       @Override
       public String perform() {

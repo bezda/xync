@@ -77,6 +77,9 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
       String action = message.body().getString("action");
       if (action != null) {
         switch (action) {
+          case "check":
+            doCheck(message);
+            break;
           case "deploy":
             doDeploy(message);
             break;
@@ -170,6 +173,46 @@ public class DefaultXyncClusterManager implements XyncClusterManager {
           new DefaultFutureResult<Void>(result.cause()).setHandler(doneHandler);
         } else {
           eventBus.unregisterHandler(nodeID, internalHandler, doneHandler);
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles checking if a deployment is deployed.
+   */
+  private void doCheck(final Message<JsonObject> message) {
+    final String deploymentID = message.body().getString("id");
+    if (deploymentID == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment ID."));
+      return;
+    }
+
+    vertx.executeBlocking(new Action<Boolean>() {
+      @Override
+      public Boolean perform() {
+        for (Map.Entry<String, String> entry : DefaultXyncClusterManager.this.cluster.entrySet()) {
+          JsonObject info = new JsonObject(entry.getValue());
+          JsonArray deployments = info.getArray("deployments");
+          if (deployments != null) {
+            for (Object deployment : deployments) {
+              JsonObject deploymentInfo = (JsonObject) deployment;
+              String id = deploymentInfo.getString("id");
+              if (id != null && id.equals(deploymentID)) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      }
+    }, new Handler<AsyncResult<Boolean>>() {
+      @Override
+      public void handle(AsyncResult<Boolean> result) {
+        if (result.failed()) {
+          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+        } else {
+          message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result.result()));
         }
       }
     });
