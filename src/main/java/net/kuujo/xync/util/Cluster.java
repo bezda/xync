@@ -18,6 +18,7 @@ package net.kuujo.xync.util;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
@@ -46,8 +47,8 @@ public final class Cluster {
    */
   public static HazelcastInstance getHazelcastInstance() {
     for (HazelcastInstance instance : Hazelcast.getAllHazelcastInstances()) {
-      MapConfig map = instance.getConfig().getMapConfig("subs");
-      if (map != null) {
+      MapConfig map = instance.getConfig().findMapConfig("subs");
+      if (map != null && map.getName().equals("subs")) {
         return instance;
       }
     }
@@ -82,6 +83,15 @@ public final class Cluster {
       return members;
     }
     return null;
+  }
+
+  /**
+   * Initializes a Vert.x Hazelcast instance for testing.
+   */
+  public static void initialize() {
+    if (!isHazelcastCluster()) {
+      Hazelcast.newHazelcastInstance(new Config().addMapConfig(new MapConfig().setName("subs")));
+    }
   }
 
 }

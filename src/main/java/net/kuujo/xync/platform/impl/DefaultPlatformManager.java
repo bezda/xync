@@ -276,7 +276,7 @@ public class DefaultPlatformManager implements PlatformManager {
       String internalID = internalIDs.getString(deploymentID);
       internalIDs.removeField(deploymentID);
       if (internalID != null) {
-        container.undeployModule(internalID);
+        container.undeployModule(internalID, doneHandler);
         deploymentIDs.removeField(internalID);
       } else {
         new DefaultFutureResult<Void>(new PlatformManagerException("Invalid deployment.")).setHandler(doneHandler);
@@ -301,7 +301,7 @@ public class DefaultPlatformManager implements PlatformManager {
       String internalID = internalIDs.getString(deploymentID);
       internalIDs.removeField(deploymentID);
       if (internalID != null) {
-        container.undeployVerticle(internalID);
+        container.undeployVerticle(internalID, doneHandler);
         deploymentIDs.removeField(internalID);
       } else {
         new DefaultFutureResult<Void>(new PlatformManagerException("Invalid deployment.")).setHandler(doneHandler);

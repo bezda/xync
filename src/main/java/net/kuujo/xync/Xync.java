@@ -557,7 +557,7 @@ public class Xync extends Verticle {
           if (result.failed()) {
             message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
           } else {
-            message.reply(result.result());
+            message.reply(result.result().body());
           }
         }
       });
@@ -586,7 +586,7 @@ public class Xync extends Verticle {
               if (result.failed()) {
                 message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
               } else {
-                message.reply(result.result());
+                message.reply(result.result().body());
               }
             }
           });
