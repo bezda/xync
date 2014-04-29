@@ -13,14 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.kuujo.xync.cluster.data;
+package net.kuujo.xync.cluster.impl;
+
+import net.kuujo.xync.cluster.ClusterManager;
+import net.kuujo.xync.cluster.ClusterManagerFactory;
+
+import static net.kuujo.xync.util.Cluster.getHazelcastInstance;
 
 /**
- * Asynchronous set.
+ * Hazelcast cluster manager factory.
  *
  * @author Jordan Halterman
- *
- * @param <T> The set data type.
  */
-public interface AsyncSet<T> extends AsyncCollection<T> {
+public class HazelcastClusterManagerFactory implements ClusterManagerFactory {
+
+  @Override
+  public ClusterManager createClusterManager() {
+    return new HazelcastClusterManager(getHazelcastInstance());
+  }
+
 }

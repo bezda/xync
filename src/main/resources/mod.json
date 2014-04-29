@@ -1,4 +1,6 @@
 {
+  "main": "net.kuujo.xync.XyncNode",
+  "worker": true,
   "description": "A fault-tolerant cluster manager for Vert.x.",
   "licenses": ["The Apache Software License Version 2.0"],
   "author": "Jordan Halterman",

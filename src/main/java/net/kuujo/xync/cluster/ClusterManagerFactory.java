@@ -15,43 +15,18 @@
  */
 package net.kuujo.xync.cluster;
 
-import java.util.Collection;
-
-import org.vertx.java.core.json.JsonObject;
-
 /**
- * Node info.
- * 
+ * Cluster manager factory.
+ *
  * @author Jordan Halterman
  */
-public interface NodeInfo {
+public interface ClusterManagerFactory {
 
   /**
-   * Returns the node ID.
+   * Creates a new cluster manager.
    *
-   * @return The unique node ID.
+   * @return A new cluster manager.
    */
-  String id();
-
-  /**
-   * Returns the node HA group.
-   *
-   * @return The node HA group.
-   */
-  String group();
-
-  /**
-   * Returns a collection of deployments assigned to the node.
-   * 
-   * @return A collection of deployments assigned to the node.
-   */
-  Collection<DeploymentInfo> deployments();
-
-  /**
-   * Returns a json representation of the node info.
-   *
-   * @return Json node info.
-   */
-  JsonObject toJson();
+  ClusterManager createClusterManager();
 
 }
