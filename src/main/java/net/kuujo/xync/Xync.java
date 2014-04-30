@@ -651,6 +651,9 @@ public class Xync extends Verticle {
       case "verticle":
         doDeployVerticle(message);
         break;
+      default:
+        message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid deployment type."));
+        break;
     }
   }
 
