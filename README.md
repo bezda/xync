@@ -4,16 +4,15 @@ Xync
 Xync is a fault-tolerant cluster manager for Vert.x. Xync augments the
 existing Vert.x platform and cluster managers to provide support for
 remote module management. This means users can deploy modules to a cluster
-using the Vert.x event bus, and Xync will automatically integrate deployments
-with Vert.x' failover mechanism to ensure modules remain running. Xync
-also provides distributed shared data via the Vert.x event bus.
+using the Vert.x event bus, and Xync will make sure your modules continue
+to run with a failover system similar to that of the core Vert.x HA mechanism.
+Xync also provides distributed shared data via the Vert.x event bus.
 
-Vert.x with Xync must be run in cluster mode because Xync is designed
-specifically for clustering.
+Xync only supports Vert.x clusters run using the default Hazelcast
+cluster manager. All shared data are backed by Hazelcast.
 
 ## User Manual
 
-1. [Installation](#installation)
 1. [Starting a Xync node](#starting-a-xync-node)
 1. [Working with deployments](#working-with-deployments)
    * [Deploying modules](#deploying-modules)
@@ -24,18 +23,6 @@ specifically for clustering.
    * [Shared lists](#shared-lists)
    * [Shared sets](#shared-sets)
    * [Shared queues](#shared-queues)
-   * [Distributed locks](#distributed-locks)
-   * [Unique ID generators](#unique-id-generators)
-
-### Installation
-The easiest method of installation is to simply download the
-[Xync Vert.x distribution](https://bintray.com/kuujo/vertx/vertx-xync/0.0.1/view/general)
-
-Alternatively, you can build Xync and install it manually:
-
-1. Copy the Xync jar into the `VERTX_HOME/lib` directory
-1. Edit your `VERTX_HOME/conf/META-INF/services` file to read
-   `net.kuujo.xync.platform.impl.XyncPlatformManagerFactory`
 
 ### Starting a Xync node
 Xync nodes are run as bare Vert.x instances in `-ha` mode. With the
@@ -47,6 +34,21 @@ VERTX_HOME/bin/vertx -ha
 
 Xync follows all the standard Vert.x HA rules, including HA groups
 which are integrated into the remote deployment interface as well.
+
+### Starting a Xync node
+To start a Xync node just deploy the Xync module.
+
+```java
+vertx runmod net.kuujo~xync~0.1.0-SNAPSHOT
+```
+
+The module accept a few configuration options:
+* `cluster` - indicates the cluster to which the node belongs. This is used as the
+  event bus address at which you can send messages to the cluster. Defaults to `cluster`
+* `address` - indicates the specific address of this node. By default a unique random
+  address will be generated.
+* `group` - indicates the group to which the node belongs. This may also be used
+  to direct deployment messages at the specific group. Defaults to `__DEFAULT__`
 
 ## Working with deployments
 Xync's primary purpose is to provide a simple event bus interface for
@@ -70,6 +72,7 @@ Module deployment messages support the following options:
 * `module` - The module to deploy.
 * `config` - The module configuration.
 * `instances` - The number of instances to deploy.
+* `ha` - Whether to fail over the deployment if the node fails.
 
 If no HA group is specified then the default Vert.x HA group will
 be used.
@@ -108,6 +111,7 @@ reference for undeploying the module.
 ```java
 JsonObject message = new JsonObject()
   .putString("action", "undeploy")
+  .putString("type", "module")
   .putString("id", "test");
 
 vertx.eventBus().send("cluster", message, new Handler<Message<JsonObject>>() {
@@ -478,50 +482,5 @@ or without a value, remove the element at the head of the queue
   "type": "queue",
   "name": "foo",
   "action": "peek"
-}
-```
-
-### Distributed locks
-The distributed lock is a cluster-wide lock that is accessible over the Vert.x event bus.
-The lock is backed by a Hazelcast lock and has the following operations:
-
-#### lock
-```
-{
-  "type": "lock",
-  "name": "foo",
-  "action": "lock"
-}
-```
-
-#### try
-```
-{
-  "type": "lock",
-  "name": "foo",
-  "action": "try",
-  "timeout": 30000
-}
-```
-
-#### unlock
-```
-{
-  "type": "lock",
-  "name": "foo",
-  "action": "unlock"
-}
-```
-
-### Unique ID generators
-The unique ID generator is a cluster-wide ID generator that is accessible over the Vert.x event bus.
-The generator is backed by a Hazelcast generator and has the following operation:
-
-#### next
-```
-{
-  "type": "id",
-  "name": "foo",
-  "action": "next"
 }
 ```
