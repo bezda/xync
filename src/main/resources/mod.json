@@ -1,5 +1,5 @@
 {
-  "main": "net.kuujo.xync.XyncNode",
+  "main": "net.kuujo.xync.Xync",
   "worker": true,
   "description": "A fault-tolerant cluster manager for Vert.x.",
   "licenses": ["The Apache Software License Version 2.0"],
