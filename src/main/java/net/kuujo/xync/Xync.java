@@ -152,6 +152,9 @@ public class Xync extends Verticle {
                   case "add":
                     doListAdd(message);
                     break;
+                  case "get":
+                    doListGet(message);
+                    break;
                   case "remove":
                     doListRemove(message);
                     break;
@@ -356,6 +359,9 @@ public class Xync extends Verticle {
                 switch (action) {
                   case "add":
                     doListAdd(message);
+                    break;
+                  case "get":
+                    doListGet(message);
                     break;
                   case "remove":
                     doListRemove(message);
@@ -1116,6 +1122,30 @@ public class Xync extends Verticle {
     try {
       boolean result = manager.getList(String.format("%s.%s", cluster, name)).add(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
+    } catch (Exception e) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
+    }
+  }
+
+  /**
+   * Handles a list get.
+   */
+  private void doListGet(final Message<JsonObject> message) {
+    final String name = message.body().getString("name");
+    if (name == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No name specified."));
+      return;
+    }
+
+    final Integer index = message.body().getInteger("index");
+    if (index == null) {
+      message.reply(new JsonObject().putString("status", "error").putString("message", "No index specified."));
+      return;
+    }
+
+    try {
+      Object result = manager.getList(String.format("%s.%s", cluster, name)).get(index);
+      message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
     }
