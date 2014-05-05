@@ -15,14 +15,17 @@
  */
 package net.kuujo.xync;
 
+import static net.kuujo.xync.util.Cluster.getHazelcastInstance;
+import static net.kuujo.xync.util.Cluster.isHazelcastCluster;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import net.kuujo.xync.cluster.ClusterManager;
-import net.kuujo.xync.cluster.ClusterManagerFactory;
-import net.kuujo.xync.cluster.impl.HazelcastClusterManagerFactory;
+import net.kuujo.xync.cluster.impl.HazelcastClusterManager;
+import net.kuujo.xync.cluster.impl.SharedDataClusterManager;
 import net.kuujo.xync.platform.PlatformManager;
 import net.kuujo.xync.platform.PlatformManagerFactory;
 import net.kuujo.xync.platform.impl.DefaultPlatformManagerFactory;
@@ -60,396 +63,21 @@ public class Xync extends Verticle {
   private final Handler<Message<JsonObject>> clusterHandler = new Handler<Message<JsonObject>>() {
     @Override
     public void handle(Message<JsonObject> message) {
-      String action = message.body().getString("action");
-      if (action != null) {
-        switch (action) {
-          case "info":
-            doClusterInfo(message);
-            break;
-          case "check":
-            doClusterCheck(message);
-            break;
-          case "deploy":
-            doClusterDeploy(message);
-            break;
-          case "undeploy":
-            doClusterUndeploy(message);
-            break;
-          default:
-            String type = message.body().getString("type");
-            if (type == null) {
-              message.reply(new JsonObject().putString("status", "error").putString("message", "No data type specified."));
-              return;
-            }
-
-            switch (type) {
-              case "key":
-                switch (action) {
-                  case "get":
-                    doKeyGet(message);
-                    break;
-                  case "set":
-                    doKeySet(message);
-                    break;
-                  case "delete":
-                    doKeyDelete(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-              case "counter":
-                switch (action) {
-                  case "increment":
-                    doCounterIncrement(message);
-                    break;
-                  case "decrement":
-                    doCounterDecrement(message);
-                    break;
-                  case "get":
-                    doCounterGet(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-              case "map":
-                switch (action) {
-                  case "put":
-                    doMapPut(message);
-                    break;
-                  case "get":
-                    doMapGet(message);
-                    break;
-                  case "remove":
-                    doMapRemove(message);
-                    break;
-                  case "contains":
-                    doMapContainsKey(message);
-                    break;
-                  case "keys":
-                    doMapKeys(message);
-                    break;
-                  case "values":
-                    doMapValues(message);
-                    break;
-                  case "empty":
-                    doMapIsEmpty(message);
-                    break;
-                  case "clear":
-                    doMapClear(message);
-                    break;
-                  case "size":
-                    doMapSize(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "list":
-                switch (action) {
-                  case "add":
-                    doListAdd(message);
-                    break;
-                  case "get":
-                    doListGet(message);
-                    break;
-                  case "remove":
-                    doListRemove(message);
-                    break;
-                  case "contains":
-                    doListContains(message);
-                    break;
-                  case "size":
-                    doListSize(message);
-                    break;
-                  case "empty":
-                    doListIsEmpty(message);
-                    break;
-                  case "clear":
-                    doListClear(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "set":
-                switch (action) {
-                  case "add":
-                    doSetAdd(message);
-                    break;
-                  case "remove":
-                    doSetRemove(message);
-                    break;
-                  case "contains":
-                    doSetContains(message);
-                    break;
-                  case "size":
-                    doSetSize(message);
-                    break;
-                  case "empty":
-                    doSetIsEmpty(message);
-                    break;
-                  case "clear":
-                    doSetClear(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "queue":
-                switch (action) {
-                  case "add":
-                    doQueueAdd(message);
-                    break;
-                  case "remove":
-                    doQueueRemove(message);
-                    break;
-                  case "contains":
-                    doQueueContains(message);
-                    break;
-                  case "empty":
-                    doQueueIsEmpty(message);
-                    break;
-                  case "size":
-                    doQueueSize(message);
-                    break;
-                  case "clear":
-                    doQueueClear(message);
-                    break;
-                  case "offer":
-                    doQueueOffer(message);
-                    break;
-                  case "element":
-                    doQueueElement(message);
-                    break;
-                  case "poll":
-                    doQueuePoll(message);
-                    break;
-                  case "peek":
-                    doQueuePeek(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-            }
-            message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-            break;
-        }
-      }
+      handleClusterMessage(message);
     }
   };
 
   private final Handler<Message<JsonObject>> groupHandler = new Handler<Message<JsonObject>>() {
     @Override
     public void handle(Message<JsonObject> message) {
-      String action = message.body().getString("action");
-      if (action != null) {
-        switch (action) {
-          case "check":
-            doCheck(message);
-            break;
-          case "deploy":
-            doInternalDeploy(message);
-            break;
-          case "undeploy":
-            doClusterUndeploy(message);
-            break;
-        }
-      }
+      handleGroupMessage(message);
     }
   };
 
   private final Handler<Message<JsonObject>> internalHandler = new Handler<Message<JsonObject>>() {
     @Override
     public void handle(Message<JsonObject> message) {
-      String action = message.body().getString("action");
-      if (action != null) {
-        switch (action) {
-          case "info":
-            doInfo(message);
-            break;
-          case "check":
-            doCheck(message);
-            break;
-          case "deploy":
-            doInternalDeploy(message);
-            break;
-          case "undeploy":
-            doInternalUndeploy(message);
-            break;
-          default:
-            String type = message.body().getString("type");
-            if (type == null) {
-              message.reply(new JsonObject().putString("status", "error").putString("message", "No data type specified."));
-              return;
-            }
-
-            switch (type) {
-              case "key":
-                switch (action) {
-                  case "get":
-                    doKeyGet(message);
-                    break;
-                  case "set":
-                    doKeySet(message);
-                    break;
-                  case "delete":
-                    doKeyDelete(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-              case "counter":
-                switch (action) {
-                  case "increment":
-                    doCounterIncrement(message);
-                    break;
-                  case "decrement":
-                    doCounterDecrement(message);
-                    break;
-                  case "get":
-                    doCounterGet(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-              case "map":
-                switch (action) {
-                  case "put":
-                    doMapPut(message);
-                    break;
-                  case "get":
-                    doMapGet(message);
-                    break;
-                  case "remove":
-                    doMapRemove(message);
-                    break;
-                  case "contains":
-                    doMapContainsKey(message);
-                    break;
-                  case "keys":
-                    doMapKeys(message);
-                    break;
-                  case "values":
-                    doMapValues(message);
-                    break;
-                  case "empty":
-                    doMapIsEmpty(message);
-                    break;
-                  case "clear":
-                    doMapClear(message);
-                    break;
-                  case "size":
-                    doMapSize(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "list":
-                switch (action) {
-                  case "add":
-                    doListAdd(message);
-                    break;
-                  case "get":
-                    doListGet(message);
-                    break;
-                  case "remove":
-                    doListRemove(message);
-                    break;
-                  case "contains":
-                    doListContains(message);
-                    break;
-                  case "size":
-                    doListSize(message);
-                    break;
-                  case "empty":
-                    doListIsEmpty(message);
-                    break;
-                  case "clear":
-                    doListClear(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "set":
-                switch (action) {
-                  case "add":
-                    doSetAdd(message);
-                    break;
-                  case "remove":
-                    doSetRemove(message);
-                    break;
-                  case "contains":
-                    doSetContains(message);
-                    break;
-                  case "size":
-                    doSetSize(message);
-                    break;
-                  case "empty":
-                    doSetIsEmpty(message);
-                    break;
-                  case "clear":
-                    doSetClear(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-              case "queue":
-                switch (action) {
-                  case "add":
-                    doQueueAdd(message);
-                    break;
-                  case "remove":
-                    doQueueRemove(message);
-                    break;
-                  case "contains":
-                    doQueueContains(message);
-                    break;
-                  case "empty":
-                    doQueueIsEmpty(message);
-                    break;
-                  case "size":
-                    doQueueSize(message);
-                    break;
-                  case "clear":
-                    doQueueClear(message);
-                    break;
-                  case "offer":
-                    doQueueOffer(message);
-                    break;
-                  case "element":
-                    doQueueElement(message);
-                    break;
-                  case "poll":
-                    doQueuePoll(message);
-                    break;
-                  case "peek":
-                    doQueuePeek(message);
-                    break;
-                  default:
-                    message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-                    break;
-                }
-                break;
-            }
-            message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
-            break;
-        }
-      }
+      handleNodeMessage(message);
     }
   };
 
@@ -462,21 +90,17 @@ public class Xync extends Verticle {
 
   @Override
   public void start(final Future<Void> future) {
+    if (isHazelcastCluster()) {
+      manager = new HazelcastClusterManager(getHazelcastInstance());
+    } else {
+      manager = new SharedDataClusterManager(vertx.sharedData());
+    }
+
     cluster = container.config().getString("cluster", DEFAULT_CLUSTER_ADDRESS);
     group = container.config().getString("group", DEFAULT_GROUP);
     address = container.config().getString("address", String.format("node-%s", UUID.randomUUID().toString()));
 
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    String sClusterFactory = container.config().getString("clusterFactory", HazelcastClusterManagerFactory.class.getName());
-    try {
-      Class<?> clazz = loader.loadClass(sClusterFactory);
-      ClusterManagerFactory factory = (ClusterManagerFactory) clazz.newInstance();
-      manager = (ClusterManager) clazz.getMethod("createClusterManager", new Class<?>[]{}).invoke(factory);
-    } catch (Exception e) {
-      future.setFailure(e);
-      return;
-    }
 
     String sPlatformFactory = container.config().getString("platformFactory", DefaultPlatformManagerFactory.class.getName());
     try {
@@ -533,6 +157,402 @@ public class Xync extends Verticle {
   @Override
   public void stop() {
     platform.stop();
+  }
+
+  /**
+   * Handles a cluster message.
+   */
+  protected void handleClusterMessage(final Message<JsonObject> message) {
+    String action = message.body().getString("action");
+    if (action != null) {
+      switch (action) {
+        case "info":
+          doClusterInfo(message);
+          break;
+        case "check":
+          doClusterCheck(message);
+          break;
+        case "deploy":
+          doClusterDeploy(message);
+          break;
+        case "undeploy":
+          doClusterUndeploy(message);
+          break;
+        default:
+          String type = message.body().getString("type");
+          if (type == null) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", "No data type specified."));
+            return;
+          }
+
+          switch (type) {
+            case "key":
+              switch (action) {
+                case "get":
+                  doKeyGet(message);
+                  break;
+                case "set":
+                  doKeySet(message);
+                  break;
+                case "delete":
+                  doKeyDelete(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+            case "counter":
+              switch (action) {
+                case "increment":
+                  doCounterIncrement(message);
+                  break;
+                case "decrement":
+                  doCounterDecrement(message);
+                  break;
+                case "get":
+                  doCounterGet(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+            case "map":
+              switch (action) {
+                case "put":
+                  doMapPut(message);
+                  break;
+                case "get":
+                  doMapGet(message);
+                  break;
+                case "remove":
+                  doMapRemove(message);
+                  break;
+                case "contains":
+                  doMapContainsKey(message);
+                  break;
+                case "keys":
+                  doMapKeys(message);
+                  break;
+                case "values":
+                  doMapValues(message);
+                  break;
+                case "empty":
+                  doMapIsEmpty(message);
+                  break;
+                case "clear":
+                  doMapClear(message);
+                  break;
+                case "size":
+                  doMapSize(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "list":
+              switch (action) {
+                case "add":
+                  doListAdd(message);
+                  break;
+                case "get":
+                  doListGet(message);
+                  break;
+                case "remove":
+                  doListRemove(message);
+                  break;
+                case "contains":
+                  doListContains(message);
+                  break;
+                case "size":
+                  doListSize(message);
+                  break;
+                case "empty":
+                  doListIsEmpty(message);
+                  break;
+                case "clear":
+                  doListClear(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "set":
+              switch (action) {
+                case "add":
+                  doSetAdd(message);
+                  break;
+                case "remove":
+                  doSetRemove(message);
+                  break;
+                case "contains":
+                  doSetContains(message);
+                  break;
+                case "size":
+                  doSetSize(message);
+                  break;
+                case "empty":
+                  doSetIsEmpty(message);
+                  break;
+                case "clear":
+                  doSetClear(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "queue":
+              switch (action) {
+                case "add":
+                  doQueueAdd(message);
+                  break;
+                case "remove":
+                  doQueueRemove(message);
+                  break;
+                case "contains":
+                  doQueueContains(message);
+                  break;
+                case "empty":
+                  doQueueIsEmpty(message);
+                  break;
+                case "size":
+                  doQueueSize(message);
+                  break;
+                case "clear":
+                  doQueueClear(message);
+                  break;
+                case "offer":
+                  doQueueOffer(message);
+                  break;
+                case "element":
+                  doQueueElement(message);
+                  break;
+                case "poll":
+                  doQueuePoll(message);
+                  break;
+                case "peek":
+                  doQueuePeek(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+          }
+          message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+          break;
+      }
+    }
+  }
+
+  /**
+   * Handles a group message.
+   */
+  protected void handleGroupMessage(final Message<JsonObject> message) {
+    String action = message.body().getString("action");
+    if (action != null) {
+      switch (action) {
+        case "check":
+          doCheck(message);
+          break;
+        case "deploy":
+          doInternalDeploy(message);
+          break;
+        case "undeploy":
+          doClusterUndeploy(message);
+          break;
+      }
+    }
+  }
+
+  /**
+   * Handles a node message.
+   */
+  protected void handleNodeMessage(final Message<JsonObject> message) {
+    String action = message.body().getString("action");
+    if (action != null) {
+      switch (action) {
+        case "info":
+          doInfo(message);
+          break;
+        case "check":
+          doCheck(message);
+          break;
+        case "deploy":
+          doInternalDeploy(message);
+          break;
+        case "undeploy":
+          doInternalUndeploy(message);
+          break;
+        default:
+          String type = message.body().getString("type");
+          if (type == null) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", "No data type specified."));
+            return;
+          }
+
+          switch (type) {
+            case "key":
+              switch (action) {
+                case "get":
+                  doKeyGet(message);
+                  break;
+                case "set":
+                  doKeySet(message);
+                  break;
+                case "delete":
+                  doKeyDelete(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+            case "counter":
+              switch (action) {
+                case "increment":
+                  doCounterIncrement(message);
+                  break;
+                case "decrement":
+                  doCounterDecrement(message);
+                  break;
+                case "get":
+                  doCounterGet(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+            case "map":
+              switch (action) {
+                case "put":
+                  doMapPut(message);
+                  break;
+                case "get":
+                  doMapGet(message);
+                  break;
+                case "remove":
+                  doMapRemove(message);
+                  break;
+                case "contains":
+                  doMapContainsKey(message);
+                  break;
+                case "keys":
+                  doMapKeys(message);
+                  break;
+                case "values":
+                  doMapValues(message);
+                  break;
+                case "empty":
+                  doMapIsEmpty(message);
+                  break;
+                case "clear":
+                  doMapClear(message);
+                  break;
+                case "size":
+                  doMapSize(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "list":
+              switch (action) {
+                case "add":
+                  doListAdd(message);
+                  break;
+                case "get":
+                  doListGet(message);
+                  break;
+                case "remove":
+                  doListRemove(message);
+                  break;
+                case "contains":
+                  doListContains(message);
+                  break;
+                case "size":
+                  doListSize(message);
+                  break;
+                case "empty":
+                  doListIsEmpty(message);
+                  break;
+                case "clear":
+                  doListClear(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "set":
+              switch (action) {
+                case "add":
+                  doSetAdd(message);
+                  break;
+                case "remove":
+                  doSetRemove(message);
+                  break;
+                case "contains":
+                  doSetContains(message);
+                  break;
+                case "size":
+                  doSetSize(message);
+                  break;
+                case "empty":
+                  doSetIsEmpty(message);
+                  break;
+                case "clear":
+                  doSetClear(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+            case "queue":
+              switch (action) {
+                case "add":
+                  doQueueAdd(message);
+                  break;
+                case "remove":
+                  doQueueRemove(message);
+                  break;
+                case "contains":
+                  doQueueContains(message);
+                  break;
+                case "empty":
+                  doQueueIsEmpty(message);
+                  break;
+                case "size":
+                  doQueueSize(message);
+                  break;
+                case "clear":
+                  doQueueClear(message);
+                  break;
+                case "offer":
+                  doQueueOffer(message);
+                  break;
+                case "element":
+                  doQueueElement(message);
+                  break;
+                case "poll":
+                  doQueuePoll(message);
+                  break;
+                case "peek":
+                  doQueuePeek(message);
+                  break;
+                default:
+                  message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+                  break;
+              }
+              break;
+          }
+          message.reply(new JsonObject().putString("status", "error").putString("message", "Invalid action " + action));
+          break;
+      }
+    }
   }
 
   /**
