@@ -90,7 +90,8 @@ public class Xync extends Verticle {
 
   @Override
   public void start(final Future<Void> future) {
-    if (isHazelcastCluster()) {
+    boolean isHazelcast = isHazelcastCluster();
+    if (isHazelcast) {
       manager = new HazelcastClusterManager(getHazelcastInstance());
     } else {
       manager = new SharedDataClusterManager(vertx.sharedData());
@@ -107,7 +108,7 @@ public class Xync extends Verticle {
       Class<?> clazz = loader.loadClass(sPlatformFactory);
       PlatformManagerFactory factory = (PlatformManagerFactory) clazz.newInstance();
       platform = (PlatformManager) clazz.getMethod("createPlatformManager", new Class<?>[]{Vertx.class, Container.class, ClusterManager.class, int.class, String.class, String.class, String.class})
-          .invoke(factory, vertx, container, manager, container.config().getInteger("quorum", 1), cluster, group, address);
+          .invoke(factory, vertx, container, manager, isHazelcast ? container.config().getInteger("quorum", 1) : 1, cluster, group, address);
     } catch (Exception e) {
       future.setFailure(e);
       return;
