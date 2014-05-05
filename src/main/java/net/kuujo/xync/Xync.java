@@ -1193,8 +1193,7 @@ public class Xync extends Verticle {
       final Object value = message.body().getValue("value");
       if (value == null) {
         message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
-      }
-      else {
+      } else {
         try {
           boolean result = manager.getList(String.format("%s.%s", cluster, name)).remove(value);
           message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
@@ -1320,8 +1319,7 @@ public class Xync extends Verticle {
     final Object value = message.body().getValue("value");
     if (value == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
-    }
-    else {
+    } else {
       try {
         boolean result = manager.getSet(String.format("%s.%s", cluster, name)).remove(value);
         message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
@@ -1446,8 +1444,7 @@ public class Xync extends Verticle {
     final Object value = message.body().getValue("value");
     if (value == null) {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
-    }
-    else {
+    } else {
       try {
         boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).remove(value);
         message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
