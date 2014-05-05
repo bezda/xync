@@ -164,8 +164,14 @@ public class SharedDataList<T> implements List<T> {
     synchronized (map) {
       for (int i = 0; i < currentSize; i++) {
         T value = (T) map.get(i);
-        if (value.equals(o)) {
+        if (value != null && value.equals(o)) {
           map.remove(i);
+          currentSize--;
+          i++;
+          while (map.containsKey(i)) {
+            map.put(i-1, map.remove(i));
+            i++;
+          }
           return true;
         }
       }

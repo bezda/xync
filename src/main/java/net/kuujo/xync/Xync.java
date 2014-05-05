@@ -54,11 +54,11 @@ import org.vertx.java.platform.Verticle;
 public class Xync extends Verticle {
   private static final String DEFAULT_CLUSTER_ADDRESS = "cluster";
   private static final String DEFAULT_GROUP = "__DEFAULT__";
-  private String cluster;
-  private String group;
-  private String address;
-  private ClusterManager manager;
-  private PlatformManager platform;
+  protected String cluster;
+  protected String group;
+  protected String address;
+  protected ClusterManager manager;
+  protected PlatformManager platform;
 
   private final Handler<Message<JsonObject>> clusterHandler = new Handler<Message<JsonObject>>() {
     @Override
@@ -1189,8 +1189,7 @@ public class Xync extends Verticle {
       } catch (Exception e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
       }
-    }
-    else {
+    } else {
       final Object value = message.body().getValue("value");
       if (value == null) {
         message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
