@@ -557,6 +557,13 @@ public class Xync extends Verticle {
   }
 
   /**
+   * Formats a key for the cluster.
+   */
+  private String formatKey(String key) {
+    return String.format("%s.%s", cluster, key);
+  }
+
+  /**
    * Gets deployment info for a deployment.
    */
   private void doClusterInfo(final Message<JsonObject> message) {
@@ -601,7 +608,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.getAssignment(deploymentID, new Handler<AsyncResult<String>>() {
+    platform.getAssignment(formatKey(deploymentID), new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
@@ -632,7 +639,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.getDeploymentInfo(deploymentID, new Handler<AsyncResult<JsonObject>>() {
+    platform.getDeploymentInfo(formatKey(deploymentID), new Handler<AsyncResult<JsonObject>>() {
       @Override
       public void handle(AsyncResult<JsonObject> result) {
         if (result.failed()) {
@@ -654,7 +661,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.isDeployed(deploymentID, new Handler<AsyncResult<Boolean>>() {
+    platform.isDeployed(formatKey(deploymentID), new Handler<AsyncResult<Boolean>>() {
       @Override
       public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
@@ -704,7 +711,7 @@ public class Xync extends Verticle {
     int instances = message.body().getInteger("instances", 1);
     boolean ha = message.body().getBoolean("ha", false);
 
-    platform.deployModuleAs(deploymentID, module, config, instances, ha, new Handler<AsyncResult<String>>() {
+    platform.deployModuleAs(formatKey(deploymentID), module, config, instances, ha, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
@@ -739,7 +746,7 @@ public class Xync extends Verticle {
 
     if (worker) {
       boolean multiThreaded = message.body().getBoolean("multi-threaded", false);
-      platform.deployWorkerVerticleAs(deploymentID, main, config, instances, multiThreaded, ha, new Handler<AsyncResult<String>>() {
+      platform.deployWorkerVerticleAs(formatKey(deploymentID), main, config, instances, multiThreaded, ha, new Handler<AsyncResult<String>>() {
         @Override
         public void handle(AsyncResult<String> result) {
           if (result.failed()) {
@@ -750,7 +757,7 @@ public class Xync extends Verticle {
         }
       });
     } else {
-      platform.deployVerticleAs(deploymentID, main, config, instances, ha, new Handler<AsyncResult<String>>() {
+      platform.deployVerticleAs(formatKey(deploymentID), main, config, instances, ha, new Handler<AsyncResult<String>>() {
         @Override
         public void handle(AsyncResult<String> result) {
           if (result.failed()) {
@@ -780,7 +787,7 @@ public class Xync extends Verticle {
     }
 
     if (type.equals("module")) {
-      platform.undeployModuleAs(deploymentID, new Handler<AsyncResult<Void>>() {
+      platform.undeployModuleAs(formatKey(deploymentID), new Handler<AsyncResult<Void>>() {
         @Override
         public void handle(AsyncResult<Void> result) {
           if (result.failed()) {
@@ -791,7 +798,7 @@ public class Xync extends Verticle {
         }
       });
     } else if (type.equals("verticle")) {
-      platform.undeployVerticleAs(deploymentID, new Handler<AsyncResult<Void>>() {
+      platform.undeployVerticleAs(formatKey(deploymentID), new Handler<AsyncResult<Void>>() {
         @Override
         public void handle(AsyncResult<Void> result) {
           if (result.failed()) {
@@ -819,7 +826,7 @@ public class Xync extends Verticle {
     final Object value = message.body().getValue("value");
 
     try {
-      manager.getMap(String.format("%s.keys", cluster)).put(key, value);
+      manager.getMap(formatKey("keys")).put(key, value);
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -837,7 +844,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object value = manager.getMap(String.format("%s.keys", cluster)).get(key);
+      Object value = manager.getMap(formatKey("keys")).get(key);
       message.reply(new JsonObject().putString("status", "ok").putValue("result", value));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -855,7 +862,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      manager.getMap(String.format("%s.keys", cluster)).remove(key);
+      manager.getMap(formatKey("keys")).remove(key);
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -873,7 +880,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Map<Object, Long> counters = manager.getMap(String.format("%s.counters", cluster));
+      Map<Object, Long> counters = manager.getMap(formatKey("counters"));
       Long value = counters.get(name);
       if (value == null) {
         value = 0L;
@@ -895,7 +902,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Map<Object, Long> counters = manager.getMap(String.format("%s.counters", cluster));
+      Map<Object, Long> counters = manager.getMap(formatKey("counters"));
       Long value = counters.get(name);
       if (value == null) {
         value = 0L;
@@ -919,7 +926,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Map<Object, Long> counters = manager.getMap(String.format("%s.counters", cluster));
+      Map<Object, Long> counters = manager.getMap(formatKey("counters"));
       Long value = counters.get(name);
       if (value == null) {
         value = 0L;
@@ -955,7 +962,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getMap(String.format("%s.%s", cluster, name)).put(key, value);
+      Object result = manager.getMap(formatKey(name)).put(key, value);
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -979,7 +986,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getMap(String.format("%s.%s", cluster, name)).get(key);
+      Object result = manager.getMap(formatKey(name)).get(key);
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1003,7 +1010,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getMap(String.format("%s.%s", cluster, name)).remove(key);
+      Object result = manager.getMap(formatKey(name)).remove(key);
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1027,7 +1034,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getMap(String.format("%s.%s", cluster, name)).containsKey(key);
+      boolean result = manager.getMap(formatKey(name)).containsKey(key);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1045,7 +1052,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Set<Object> result = manager.getMap(String.format("%s.%s", cluster, name)).keySet();
+      Set<Object> result = manager.getMap(formatKey(name)).keySet();
       message.reply(new JsonObject().putString("status", "ok").putArray("result", new JsonArray(result.toArray())));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1063,7 +1070,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Collection<Object> result = manager.getMap(String.format("%s.%s", cluster, name)).values();
+      Collection<Object> result = manager.getMap(formatKey(name)).values();
       message.reply(new JsonObject().putString("status", "ok").putArray("result", new JsonArray(result.toArray())));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1081,7 +1088,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getMap(String.format("%s.%s", cluster, name)).isEmpty();
+      boolean result = manager.getMap(formatKey(name)).isEmpty();
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1099,7 +1106,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      int result = manager.getMap(String.format("%s.%s", cluster, name)).size();
+      int result = manager.getMap(formatKey(name)).size();
       message.reply(new JsonObject().putString("status", "ok").putNumber("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1117,7 +1124,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      manager.getMap(String.format("%s.%s", cluster, name)).clear();
+      manager.getMap(formatKey(name)).clear();
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1141,7 +1148,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getList(String.format("%s.%s", cluster, name)).add(value);
+      boolean result = manager.getList(formatKey(name)).add(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1165,7 +1172,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getList(String.format("%s.%s", cluster, name)).get(index);
+      Object result = manager.getList(formatKey(name)).get(index);
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1185,7 +1192,7 @@ public class Xync extends Verticle {
     if (message.body().containsField("index")) {
       final int index = message.body().getInteger("index");
       try {
-        Object result = manager.getList(String.format("%s.%s", cluster, name)).remove(index);
+        Object result = manager.getList(formatKey(name)).remove(index);
         message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
       } catch (Exception e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1196,7 +1203,7 @@ public class Xync extends Verticle {
         message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
       } else {
         try {
-          boolean result = manager.getList(String.format("%s.%s", cluster, name)).remove(value);
+          boolean result = manager.getList(formatKey(name)).remove(value);
           message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
         } catch (Exception e) {
           message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1222,7 +1229,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getList(String.format("%s.%s", cluster, name)).contains(value);
+      boolean result = manager.getList(formatKey(name)).contains(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1240,7 +1247,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getList(String.format("%s.%s", cluster, name)).isEmpty();
+      boolean result = manager.getList(formatKey(name)).isEmpty();
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1258,7 +1265,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      int result = manager.getList(String.format("%s.%s", cluster, name)).size();
+      int result = manager.getList(formatKey(name)).size();
       message.reply(new JsonObject().putString("status", "ok").putNumber("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1276,7 +1283,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      manager.getList(String.format("%s.%s", cluster, name)).clear();
+      manager.getList(formatKey(name)).clear();
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1300,7 +1307,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getSet(String.format("%s.%s", cluster, name)).add(value);
+      boolean result = manager.getSet(formatKey(name)).add(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1322,7 +1329,7 @@ public class Xync extends Verticle {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
     } else {
       try {
-        boolean result = manager.getSet(String.format("%s.%s", cluster, name)).remove(value);
+        boolean result = manager.getSet(formatKey(name)).remove(value);
         message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
       } catch (Exception e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1347,7 +1354,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getSet(String.format("%s.%s", cluster, name)).contains(value);
+      boolean result = manager.getSet(formatKey(name)).contains(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1365,7 +1372,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getSet(String.format("%s.%s", cluster, name)).isEmpty();
+      boolean result = manager.getSet(formatKey(name)).isEmpty();
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1383,7 +1390,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      int result = manager.getSet(String.format("%s.%s", cluster, name)).size();
+      int result = manager.getSet(formatKey(name)).size();
       message.reply(new JsonObject().putString("status", "ok").putNumber("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1401,7 +1408,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      manager.getSet(String.format("%s.%s", cluster, name)).clear();
+      manager.getSet(formatKey(name)).clear();
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1425,7 +1432,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).add(value);
+      boolean result = manager.getQueue(formatKey(name)).add(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1447,7 +1454,7 @@ public class Xync extends Verticle {
       message.reply(new JsonObject().putString("status", "error").putString("message", "No value specified."));
     } else {
       try {
-        boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).remove(value);
+        boolean result = manager.getQueue(formatKey(name)).remove(value);
         message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
       } catch (Exception e) {
         message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1472,7 +1479,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).contains(value);
+      boolean result = manager.getQueue(formatKey(name)).contains(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1490,7 +1497,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).isEmpty();
+      boolean result = manager.getQueue(formatKey(name)).isEmpty();
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1508,7 +1515,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      int result = manager.getQueue(String.format("%s.%s", cluster, name)).size();
+      int result = manager.getQueue(formatKey(name)).size();
       message.reply(new JsonObject().putString("status", "ok").putNumber("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1526,7 +1533,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      manager.getQueue(String.format("%s.%s", cluster, name)).clear();
+      manager.getQueue(formatKey(name)).clear();
       message.reply(new JsonObject().putString("status", "ok"));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1550,7 +1557,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      boolean result = manager.getQueue(String.format("%s.%s", cluster, name)).offer(value);
+      boolean result = manager.getQueue(formatKey(name)).offer(value);
       message.reply(new JsonObject().putString("status", "ok").putBoolean("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1568,7 +1575,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getQueue(String.format("%s.%s", cluster, name)).element();
+      Object result = manager.getQueue(formatKey(name)).element();
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1586,7 +1593,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getQueue(String.format("%s.%s", cluster, name)).poll();
+      Object result = manager.getQueue(formatKey(name)).poll();
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
@@ -1604,7 +1611,7 @@ public class Xync extends Verticle {
     }
 
     try {
-      Object result = manager.getQueue(String.format("%s.%s", cluster, name)).peek();
+      Object result = manager.getQueue(formatKey(name)).peek();
       message.reply(new JsonObject().putString("status", "ok").putValue("result", result));
     } catch (Exception e) {
       message.reply(new JsonObject().putString("status", "error").putString("message", e.getMessage()));
