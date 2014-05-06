@@ -608,7 +608,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.getAssignment(formatKey(deploymentID), new Handler<AsyncResult<String>>() {
+    platform.getAssignment(deploymentID, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
@@ -639,7 +639,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.getDeploymentInfo(formatKey(deploymentID), new Handler<AsyncResult<JsonObject>>() {
+    platform.getDeploymentInfo(deploymentID, new Handler<AsyncResult<JsonObject>>() {
       @Override
       public void handle(AsyncResult<JsonObject> result) {
         if (result.failed()) {
@@ -661,7 +661,7 @@ public class Xync extends Verticle {
       return;
     }
 
-    platform.isDeployed(formatKey(deploymentID), new Handler<AsyncResult<Boolean>>() {
+    platform.isDeployed(deploymentID, new Handler<AsyncResult<Boolean>>() {
       @Override
       public void handle(AsyncResult<Boolean> result) {
         if (result.failed()) {
@@ -711,7 +711,7 @@ public class Xync extends Verticle {
     int instances = message.body().getInteger("instances", 1);
     boolean ha = message.body().getBoolean("ha", false);
 
-    platform.deployModuleAs(formatKey(deploymentID), module, config, instances, ha, new Handler<AsyncResult<String>>() {
+    platform.deployModuleAs(deploymentID, module, config, instances, ha, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         if (result.failed()) {
@@ -746,7 +746,7 @@ public class Xync extends Verticle {
 
     if (worker) {
       boolean multiThreaded = message.body().getBoolean("multi-threaded", false);
-      platform.deployWorkerVerticleAs(formatKey(deploymentID), main, config, instances, multiThreaded, ha, new Handler<AsyncResult<String>>() {
+      platform.deployWorkerVerticleAs(deploymentID, main, config, instances, multiThreaded, ha, new Handler<AsyncResult<String>>() {
         @Override
         public void handle(AsyncResult<String> result) {
           if (result.failed()) {
@@ -757,7 +757,7 @@ public class Xync extends Verticle {
         }
       });
     } else {
-      platform.deployVerticleAs(formatKey(deploymentID), main, config, instances, ha, new Handler<AsyncResult<String>>() {
+      platform.deployVerticleAs(deploymentID, main, config, instances, ha, new Handler<AsyncResult<String>>() {
         @Override
         public void handle(AsyncResult<String> result) {
           if (result.failed()) {
@@ -787,7 +787,7 @@ public class Xync extends Verticle {
     }
 
     if (type.equals("module")) {
-      platform.undeployModuleAs(formatKey(deploymentID), new Handler<AsyncResult<Void>>() {
+      platform.undeployModuleAs(deploymentID, new Handler<AsyncResult<Void>>() {
         @Override
         public void handle(AsyncResult<Void> result) {
           if (result.failed()) {
@@ -798,7 +798,7 @@ public class Xync extends Verticle {
         }
       });
     } else if (type.equals("verticle")) {
-      platform.undeployVerticleAs(formatKey(deploymentID), new Handler<AsyncResult<Void>>() {
+      platform.undeployVerticleAs(deploymentID, new Handler<AsyncResult<Void>>() {
         @Override
         public void handle(AsyncResult<Void> result) {
           if (result.failed()) {
