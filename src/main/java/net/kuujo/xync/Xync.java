@@ -157,7 +157,9 @@ public class Xync extends Verticle {
 
   @Override
   public void stop() {
-    platform.stop();
+    if (platform != null) {
+      platform.stop();
+    }
   }
 
   /**
