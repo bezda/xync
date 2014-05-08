@@ -27,7 +27,6 @@ import org.vertx.java.core.Handler;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.Member;
-import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
 
@@ -74,11 +73,6 @@ public class HazelcastClusterManager implements ClusterManager, MembershipListen
     if (leaveHandler != null) {
       leaveHandler.handle(event.getMember().getUuid());
     }
-  }
-
-  @Override
-  public void memberAttributeChanged(MemberAttributeEvent event) {
-    
   }
 
   @Override

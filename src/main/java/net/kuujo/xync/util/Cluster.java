@@ -47,7 +47,7 @@ public final class Cluster {
    */
   public static HazelcastInstance getHazelcastInstance() {
     for (HazelcastInstance instance : Hazelcast.getAllHazelcastInstances()) {
-      MapConfig map = instance.getConfig().findMapConfig("subs");
+      MapConfig map = instance.getConfig().findMatchingMapConfig("subs");
       if (map != null && map.getName().equals("subs")) {
         return instance;
       }
