@@ -50,7 +50,6 @@ public class DefaultPlatformManager implements PlatformManager {
   private final Logger log = LoggerFactory.getLogger(DefaultPlatformManager.class);
   private static final long QUORUM_CHECK_PERIOD = 1000;
 
-  private final Vertx vertx;
   private final Container container;
   private final ClusterManager manager;
   private final int quorumSize;
@@ -66,7 +65,6 @@ public class DefaultPlatformManager implements PlatformManager {
   private volatile boolean attainedQuorum;
 
   public DefaultPlatformManager(Vertx vertx, Container container, ClusterManager manager, int quorumSize, String cluster, String group, String node) {
-    this.vertx = vertx;
     this.container = container;
     this.manager = manager;
     this.quorumSize = quorumSize;
@@ -89,13 +87,13 @@ public class DefaultPlatformManager implements PlatformManager {
     vertx.setPeriodic(QUORUM_CHECK_PERIOD, new Handler<Long>() {
       @Override
       public void handle(Long timerID) {
+        synchronized (DefaultPlatformManager.this) {
+          checkQuorum();
+        }
         checkHADeployments();
       }
     });
-    // Call check quorum to compute whether we have an initial quorum
-    synchronized (this) {
-      checkQuorum();
-    }
+    checkQuorum();
   }
 
   @Override
@@ -322,9 +320,7 @@ public class DefaultPlatformManager implements PlatformManager {
   // A node has joined the cluster
   // synchronize this in case the cluster manager is naughty and calls it concurrently
   private synchronized void nodeAdded(final String nodeID) {
-     // This is not ideal but we need to wait for the group information to appear - and this will be shortly
-    // after the node has been added
-    checkQuorumWhenAdded(nodeID, System.currentTimeMillis());
+    
   }
 
   // A node has left the cluster
@@ -351,31 +347,6 @@ public class DefaultPlatformManager implements PlatformManager {
           checkFailover(entry.getKey(), new JsonObject(entry.getValue()));
         }
       }
-    }
-  }
-
-  private synchronized void checkQuorumWhenAdded(final String nodeID, final long start) {
-    boolean added = false;
-    for (Map.Entry<String, String> entry : clusterMap.entrySet()) {
-      JsonObject haInfo = new JsonObject(entry.getValue());
-      if (haInfo.getString("node").equals(nodeID)) {
-        added = true;
-        break;
-      }
-    }
-    if (added) {
-      checkQuorum();
-    } else {
-      vertx.setTimer(200, new Handler<Long>() {
-        @Override
-        public void handle(Long event) {
-          if (System.currentTimeMillis() - start > 10000) {
-            log.warn("Timed out waiting for group information to appear");
-          } else {
-            checkQuorumWhenAdded(nodeID, start);
-          }
-        }
-      });
     }
   }
 
