@@ -98,7 +98,7 @@ public class Xync extends Verticle {
     }
 
     cluster = container.config().getString("cluster", DEFAULT_CLUSTER_ADDRESS);
-    group = container.config().getString("group", DEFAULT_GROUP);
+    group = String.format("%s.%s", cluster, container.config().getString("group", DEFAULT_GROUP));
     address = container.config().getString("address", String.format("node-%s", UUID.randomUUID().toString()));
 
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
