@@ -587,7 +587,7 @@ public class Xync extends Verticle {
     if (group == null) {
       doInternalDeploy(message);
     } else {
-      vertx.eventBus().sendWithTimeout(group, message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
+      vertx.eventBus().sendWithTimeout(String.format("%s.%s", cluster, group), message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
         @Override
         public void handle(AsyncResult<Message<JsonObject>> result) {
           if (result.failed()) {
