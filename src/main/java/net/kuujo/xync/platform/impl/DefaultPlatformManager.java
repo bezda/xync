@@ -125,7 +125,7 @@ public class DefaultPlatformManager implements PlatformManager {
       JsonArray deployments = haInfo.getArray("deployments");
       for (Object deployment : deployments) {
         JsonObject deploymentInfo = (JsonObject) deployment;
-        if (deploymentInfo.getString("id").equals(deploymentID) && nodes.contains(nodeID) || deploymentInfo.getBoolean("ha", false)) {
+        if (deploymentInfo.getString("id").equals(deploymentID) && (nodes.contains(nodeID) || deploymentInfo.getBoolean("ha", false))) {
           new DefaultFutureResult<Boolean>(true).setHandler(resultHandler);
           return;
         }
