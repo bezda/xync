@@ -9,7 +9,7 @@
 
   <groupId>net.kuujo</groupId>
   <artifactId>xync</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.0.0-beta1</version>
   <packaging>jar</packaging>
   <name>Xync</name>
   <description>Fault-tolerant cluster manager for Vert.x.</description>
