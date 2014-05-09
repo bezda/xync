@@ -583,17 +583,21 @@ public class Xync extends Verticle {
    * Deploys a deployment.
    */
   private void doClusterDeploy(final Message<JsonObject> message) {
-    String group = message.body().getString("group", DEFAULT_GROUP);
-    vertx.eventBus().sendWithTimeout(String.format("%s.%s", cluster, group), message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
-      @Override
-      public void handle(AsyncResult<Message<JsonObject>> result) {
-        if (result.failed()) {
-          message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
-        } else {
-          message.reply(result.result().body());
+    String group = message.body().getString("group");
+    if (group == null) {
+      doInternalDeploy(message);
+    } else {
+      vertx.eventBus().sendWithTimeout(String.format("%s.%s", cluster, group), message.body(), 30000, new Handler<AsyncResult<Message<JsonObject>>>() {
+        @Override
+        public void handle(AsyncResult<Message<JsonObject>> result) {
+          if (result.failed()) {
+            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+          } else {
+            message.reply(result.result().body());
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   /**
