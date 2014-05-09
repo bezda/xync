@@ -9,10 +9,10 @@
 
   <groupId>net.kuujo</groupId>
   <artifactId>xync</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Xync</name>
-  <description>A fault-tolerant cluster manager for Vert.x.</description>
+  <description>Fault-tolerant cluster manager for Vert.x.</description>
   <url>http://github.com/kuujo/xync</url>
   <inceptionYear>2014</inceptionYear>
 
