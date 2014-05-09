@@ -61,6 +61,7 @@ public class DefaultPlatformManager implements PlatformManager {
   private JsonArray deployments;
   private JsonObject deploymentIDs;
   private JsonObject internalIDs;
+  private final Queue<Runnable> toFailoverOnQuorum = new ConcurrentLinkedQueue<>();
   private final Queue<Runnable> toDeployOnQuorum = new ConcurrentLinkedQueue<>();
   private volatile boolean attainedQuorum;
 
@@ -117,12 +118,17 @@ public class DefaultPlatformManager implements PlatformManager {
 
   @Override
   public void isDeployed(final String deploymentID, final Handler<AsyncResult<Boolean>> resultHandler) {
+    Set<String> nodes = manager.getNodes();
     for (Map.Entry<String, String> entry : clusterMap.entrySet()) {
       JsonObject haInfo = new JsonObject(entry.getValue());
-      JsonObject internalIDs = haInfo.getObject("internal");
-      if (internalIDs != null && internalIDs.containsField(deploymentID)) {
-        new DefaultFutureResult<Boolean>(true).setHandler(resultHandler);
-        return;
+      String nodeID = haInfo.getString("node");
+      JsonArray deployments = haInfo.getArray("deployments");
+      for (Object deployment : deployments) {
+        JsonObject deploymentInfo = (JsonObject) deployment;
+        if (deploymentInfo.getString("id").equals(deploymentID) && nodes.contains(nodeID) || deploymentInfo.getBoolean("ha", false)) {
+          new DefaultFutureResult<Boolean>(true).setHandler(resultHandler);
+          return;
+        }
       }
     }
     new DefaultFutureResult<Boolean>(false).setHandler(resultHandler);
@@ -326,26 +332,17 @@ public class DefaultPlatformManager implements PlatformManager {
   // A node has left the cluster
   // synchronize this in case the cluster manager is naughty and calls it concurrently
   private synchronized void nodeLeft(String leftNodeID) {
-    checkQuorum();
-    if (attainedQuorum) {
-      // Check for failover
-      for (Map.Entry<String, String> entry : clusterMap.entrySet()) {
-        JsonObject haInfo = new JsonObject(entry.getValue());
-        String nodeID = haInfo.getString("node");
-        if (nodeID != null && nodeID.equals(leftNodeID)) {
-          checkFailover(entry.getKey(), haInfo);
-        }
-      }
-
-      // We also check for and potentially resume any previous failovers that might have failed
-      // We can determine this if there any ids in the cluster map which aren't in the node list
-      Set<String> nodes = manager.getNodes();
-      for (Map.Entry<String, String> entry: clusterMap.entrySet()) {
-        JsonObject haInfo = new JsonObject(entry.getValue());
-        String nodeID = haInfo.getString("node");
-        if (nodeID != null && !nodes.contains(nodeID)) {
-          checkFailover(entry.getKey(), new JsonObject(entry.getValue()));
-        }
+    Set<String> nodes = manager.getNodes();
+    for (final Map.Entry<String, String> entry : clusterMap.entrySet()) {
+      final JsonObject haInfo = new JsonObject(entry.getValue());
+      String nodeID = haInfo.getString("node");
+      if (nodeID != null && (nodeID.equals(leftNodeID) || !nodes.contains(nodeID))) {
+        toFailoverOnQuorum.add(new Runnable() {
+          @Override
+          public void run() {
+            checkFailover(entry.getKey(), haInfo);
+          }
+        });
       }
     }
   }
@@ -572,10 +569,18 @@ public class DefaultPlatformManager implements PlatformManager {
 
   // Deploy any deployments that are waiting for a quorum
   private void deployHADeployments() {
+    Runnable task;
+    while ((task = toFailoverOnQuorum.poll()) != null) {
+      try {
+        task.run();
+      } catch (Throwable t) {
+        log.error("Failed to run failover task", t);
+      }
+    }
+
     int size = toDeployOnQuorum.size();
     if (size != 0) {
       log.info("There are " + size + " HA deployments waiting on a quorum. These will now be deployed");
-      Runnable task;
       while ((task = toDeployOnQuorum.poll()) != null) {
         try {
           task.run();
@@ -616,10 +621,12 @@ public class DefaultPlatformManager implements PlatformManager {
     if (type.equals("module")) {
       final CountDownLatch latch = new CountDownLatch(1);
       final AtomicReference<Throwable> err = new AtomicReference<>();
-      deployModuleAs(deploymentInfo.getString("id"), deploymentInfo.getString("module"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
+      container.deployModule(deploymentInfo.getString("module"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), new Handler<AsyncResult<String>>() {
         @Override
         public void handle(AsyncResult<String> result) {
           if (result.succeeded()) {
+            // Tell the other nodes of the cluster about the module for HA purposes
+            addModuleToHA(deploymentInfo.getString("id"), result.result(), deploymentInfo.getString("module"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), true);
             log.info("Successfully redeployed module " + deploymentInfo.getString("module") + " after failover");
           } else {
             log.error("Failed to redeploy module after failover", result.cause());
@@ -645,10 +652,12 @@ public class DefaultPlatformManager implements PlatformManager {
       if (isWorker) {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> err = new AtomicReference<>();
-        deployWorkerVerticleAs(deploymentInfo.getString("id"), deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances"), deploymentInfo.getBoolean("multi-threaded", false), true, new Handler<AsyncResult<String>>() {
+        container.deployWorkerVerticle(deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), deploymentInfo.getBoolean("multi-threaded", false), new Handler<AsyncResult<String>>() {
           @Override
           public void handle(AsyncResult<String> result) {
             if (result.succeeded()) {
+              // Tell the other nodes of the cluster about the verticle for HA purposes
+              addWorkerVerticleToHA(deploymentInfo.getString("id"), result.result(), deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), deploymentInfo.getBoolean("multi-threaded", false), true);
               log.info("Successfully redeployed verticle " + deploymentInfo.getString("main") + " after failover");
             } else {
               log.error("Failed to redeploy verticle after failover", result.cause());
@@ -671,10 +680,12 @@ public class DefaultPlatformManager implements PlatformManager {
       } else {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> err = new AtomicReference<>();
-        deployVerticleAs(deploymentInfo.getString("id"), deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances"), true, new Handler<AsyncResult<String>>() {
+        container.deployVerticle(deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), new Handler<AsyncResult<String>>() {
           @Override
           public void handle(AsyncResult<String> result) {
             if (result.succeeded()) {
+              // Tell the other nodes of the cluster about the verticle for HA purposes
+              addVerticleToHA(deploymentInfo.getString("id"), result.result(), deploymentInfo.getString("main"), deploymentInfo.getObject("config"), deploymentInfo.getInteger("instances", 1), true);
               log.info("Successfully redeployed verticle " + deploymentInfo.getString("main") + " after failover");
             } else {
               log.error("Failed to redeploy verticle after failover", result.cause());
