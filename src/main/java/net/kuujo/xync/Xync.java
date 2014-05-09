@@ -98,7 +98,7 @@ public class Xync extends Verticle {
     }
 
     cluster = container.config().getString("cluster", DEFAULT_CLUSTER_ADDRESS);
-    group = String.format("%s.%s", cluster, container.config().getString("group", DEFAULT_GROUP));
+    group = container.config().getString("group", DEFAULT_GROUP);
     address = container.config().getString("address", String.format("node-%s", UUID.randomUUID().toString()));
 
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -122,7 +122,7 @@ public class Xync extends Verticle {
         if (result.failed()) {
           future.setFailure(result.cause());
         } else {
-          vertx.eventBus().registerHandler(group, groupHandler, new Handler<AsyncResult<Void>>() {
+          vertx.eventBus().registerHandler(String.format("%s.%s", cluster, group), groupHandler, new Handler<AsyncResult<Void>>() {
             @Override
             public void handle(AsyncResult<Void> result) {
               if (result.failed()) {
