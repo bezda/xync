@@ -11,6 +11,9 @@ Xync also provides distributed shared data via the Vert.x event bus.
 Xync only supports Vert.x clusters run using the default Hazelcast
 cluster manager. All shared data are backed by Hazelcast.
 
+**WARNING: Xync is only compatible with Vert.x versions that use
+Hazelcast 3+**.
+
 ## User Manual
 
 1. [Starting a Xync node](#starting-a-xync-node)
@@ -39,7 +42,7 @@ which are integrated into the remote deployment interface as well.
 To start a Xync node just deploy the Xync module.
 
 ```java
-vertx runmod net.kuujo~xync~0.1.0-SNAPSHOT
+vertx runmod net.kuujo~xync~1.0.0-beta1
 ```
 
 The module accept a few configuration options:
@@ -49,6 +52,8 @@ The module accept a few configuration options:
   address will be generated.
 * `group` - indicates the group to which the node belongs. This may also be used
   to direct deployment messages at the specific group. Defaults to `__DEFAULT__`
+* `quorum` - indicates the quorum size required for HA deployments. Xync quorums
+  behave exactly the same way as in the core Vert.x HA mechanism.
 
 ## Working with deployments
 Xync's primary purpose is to provide a simple event bus interface for
