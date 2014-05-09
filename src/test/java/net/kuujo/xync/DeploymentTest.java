@@ -59,7 +59,7 @@ public class DeploymentTest extends TestVerticle {
   @Test
   public void testDeployVerticlesToGroup() {
     Cluster.initialize();
-    container.deployWorkerVerticle(Xync.class.getName(), new JsonObject().putString("cluster", "test").putString("group", "test1"), 3, false, new Handler<AsyncResult<String>>() {
+    container.deployWorkerVerticle(Xync.class.getName(), new JsonObject().putString("cluster", "test"), 3, false, new Handler<AsyncResult<String>>() {
       @Override
       public void handle(AsyncResult<String> result) {
         assertTrue(result.succeeded());
