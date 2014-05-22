@@ -35,6 +35,7 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.eventbus.ReplyException;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Container;
@@ -591,7 +592,20 @@ public class Xync extends Verticle {
         @Override
         public void handle(AsyncResult<Message<JsonObject>> result) {
           if (result.failed()) {
-            message.reply(new JsonObject().putString("status", "error").putString("message", result.cause().getMessage()));
+              String replyMessage;
+              if(result.cause() instanceof ReplyException) {
+                  ReplyException replyException = (ReplyException) result.cause();
+                  switch (replyException.failureType()){
+                      case NO_HANDLERS:
+                          replyMessage = String.format("Invalid deployment group");
+                          break;
+                      default:
+                          replyMessage = String.format("%s: %s", replyException.failureType(), replyException.getMessage());
+                  }
+              } else {
+                  replyMessage = result.cause().getMessage();
+              }
+              message.reply(new JsonObject().putString("status", "error").putString("message", replyMessage));
           } else {
             message.reply(result.result().body());
           }
